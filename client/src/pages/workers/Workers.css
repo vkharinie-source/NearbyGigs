@@ -1,0 +1,181 @@
+/* ==========================================================================
+   NEARBYGIG FIND WORKERS PAGE STYLES
+   ========================================================================== */
+
+.workers-grid-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.worker-card-premium {
+  background: #ffffff;
+  border: 1px solid var(--bg-muted);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+}
+
+.worker-card-premium:hover {
+  border-color: #bfdbfe;
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.worker-card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.worker-profile-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.worker-avatar-lg {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+  flex-shrink: 0;
+}
+
+.worker-name-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.worker-fullname {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.verified-shield-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--emerald-50);
+  color: var(--emerald-700);
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+}
+
+.worker-service-title {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+  font-weight: 500;
+}
+
+.worker-price-and-rating {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.starting-rate-pill {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.starting-rate-pill small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.worker-desc-text {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 1rem 0;
+}
+
+.worker-skills-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.15rem;
+}
+
+.worker-card-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--bg-subtle);
+  padding-top: 0.85rem;
+  margin-top: auto;
+}
+
+.worker-meta-details {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.meta-dist {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.avail-status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+}
+
+.avail-status-dot.avail-now {
+  background: var(--emerald-50);
+  color: var(--emerald-700);
+}
+
+.avail-status-dot.avail-today {
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.avail-status-dot.avail-week {
+  background: var(--amber-50);
+  color: var(--amber-700);
+}
+
+.pulse-circle {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.worker-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}

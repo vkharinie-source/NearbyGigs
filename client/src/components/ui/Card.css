@@ -1,0 +1,30 @@
+.ui-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--bg-muted);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.ui-card-elevated {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-bounce);
+}
+
+.ui-card-interactive {
+  cursor: pointer;
+}
+
+.ui-card-interactive:hover {
+  border-color: #cbd5e1;
+  box-shadow: var(--shadow-md);
+}
+
+.ui-card-elevated.ui-card-interactive:hover {
+  border-color: var(--primary-200);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
