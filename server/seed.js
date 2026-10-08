@@ -1,13 +1,14 @@
-﻿const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const Gig = require('./models/Gig');
 const Service = require('./models/Service');
 const Review = require('./models/Review');
 const Application = require('./models/Application');
 const Notification = require('./models/Notification');
+const Earning = require('./models/Earning');
 const connectDB = require('./config/db');
+const { maskAadhaar, hashAadhaar, generateKycReference } = require('./utils/aadhaarUtils');
 
 dotenv.config();
 
@@ -21,12 +22,13 @@ const seedData = async () => {
     await Review.deleteMany();
     await Application.deleteMany();
     await Notification.deleteMany();
+    await Earning.deleteMany();
 
-    console.log('Cleared existing data.');
+    console.log('Cleared existing database records.');
 
     const plainPassword = 'password123';
 
-    // Create Sample Users (Bengaluru coordinates)
+    // 1. Create Sample Users with Complete Security, Student, and Employer profiles
     const users = await User.create([
       {
         name: 'Arun Kumar',
@@ -45,57 +47,98 @@ const seedData = async () => {
         },
         address: 'MG Road, Bengaluru, Karnataka',
         rating: 4.9,
+        kycStatus: 'verified',
+        maskedAadhaar: maskAadhaar('987654321012'),
+        aadhaarHash: hashAadhaar('987654321012'),
+        kycReferenceId: generateKycReference(),
+        kycVerifiedAt: new Date(),
+        phoneVerified: true,
+        emailVerified: true,
       },
       {
-        name: 'Priya Sharma',
+        name: 'Priya Sharma (TechCorp Facility)',
         email: 'priya@example.com',
         phone: '+91 9876543211',
         password: plainPassword,
-        role: 'customer',
-        bio: 'Homeowner in Indiranagar looking for quick local service fixes.',
+        role: 'employer',
+        bio: 'Facility manager at TechCorp hiring vetted local talent for workspace & home maintenance.',
+        companyName: 'TechCorp Solutions Pvt Ltd',
+        companyRegistration: 'CIN-U72200KA2021PTC148890',
+        employerStatus: 'VERIFIED',
+        employerVerifiedAt: new Date(),
         location: {
           type: 'Point',
-          coordinates: [77.6412, 12.9784], // Indiranagar (~4.8km)
+          coordinates: [77.6412, 12.9784], // Indiranagar
           address: '100ft Road, Indiranagar, Bengaluru',
         },
         address: '100ft Road, Indiranagar, Bengaluru',
         rating: 4.8,
+        phoneVerified: true,
+        emailVerified: true,
       },
       {
-        name: 'Rajesh Verma',
-        email: 'rajesh@example.com',
+        name: 'Rahul Verma (Student Worker)',
+        email: 'rahul@example.com',
         phone: '+91 9876543212',
         password: plainPassword,
-        role: 'worker',
-        bio: 'Master Plumber & Pipefitter. Available 24/7 for emergency leaks.',
-        skills: ['Plumbing', 'Pipe Fitting', 'Bathroom Fitting', 'Water Heater Repair'],
-        experience: 8,
+        role: 'student_worker',
+        isStudent: true,
+        dateOfBirth: new Date('2003-05-14'), // Age 21
+        age: 21,
+        college: {
+          name: 'RV College of Engineering',
+          course: 'B.E. Computer Science',
+          year: 3,
+          rollNumber: '1RV21CS089',
+        },
+        studentVerificationStatus: 'verified',
+        studentVerifiedAt: new Date(),
+        guardian: {
+          name: 'Suresh Verma',
+          phone: '+91 9845012345',
+          relationship: 'Father',
+          isVerified: true,
+          notifiedOnNightGigs: true,
+        },
+        emergencyContacts: [
+          { name: 'Suresh Verma (Father)', phone: '+91 9845012345', relationship: 'Parent' },
+        ],
+        bio: 'Tech-savvy college student available for smart home setups, PC troubleshooting, and math tutoring.',
+        skills: ['Computer Hardware', 'WiFi Setup', 'Math Tutoring', 'App Testing'],
+        experience: 2,
         availability: 'available_now',
         location: {
           type: 'Point',
-          coordinates: [77.6245, 12.9352], // Koramangala (~4.5km)
+          coordinates: [77.6245, 12.9352], // Koramangala
           address: '5th Block, Koramangala, Bengaluru',
         },
         address: '5th Block, Koramangala, Bengaluru',
-        rating: 4.7,
+        rating: 4.9,
+        kycStatus: 'verified',
+        maskedAadhaar: maskAadhaar('543210987654'),
+        aadhaarHash: hashAadhaar('543210987654'),
+        kycReferenceId: generateKycReference(),
+        kycVerifiedAt: new Date(),
+        phoneVerified: true,
+        emailVerified: true,
       },
       {
-        name: 'Kavita Reddy',
-        email: 'kavita@example.com',
-        phone: '+91 9876543213',
+        name: 'Admin Security Team',
+        email: 'admin@nearbygigs.com',
+        phone: '+91 9000000001',
         password: plainPassword,
-        role: 'both',
-        bio: 'Interior painter and home improvement enthusiast.',
-        skills: ['Wall Painting', 'Waterproofing', 'Carpentry Basics'],
-        experience: 4,
-        availability: 'available_week',
+        role: 'admin',
+        bio: 'NearbyGigs Safety Operations and Trust Enforcement Team.',
         location: {
           type: 'Point',
-          coordinates: [77.6974, 12.9698], // Marathahalli (~11km)
-          address: 'Marathahalli Main Road, Bengaluru',
+          coordinates: [77.5946, 12.9716],
+          address: 'NearbyGigs HQ, Bengaluru',
         },
-        address: 'Marathahalli Main Road, Bengaluru',
-        rating: 4.6,
+        address: 'NearbyGigs HQ, Bengaluru',
+        rating: 5.0,
+        kycStatus: 'verified',
+        phoneVerified: true,
+        emailVerified: true,
       },
       {
         name: 'Harinie V K',
@@ -114,31 +157,23 @@ const seedData = async () => {
         },
         address: 'Brigade Road, Bengaluru',
         rating: 5.0,
-      },
-      {
-        name: 'Harinie Customer',
-        email: 'harinievk@gmail.com',
-        phone: '+91 9112233445',
-        password: plainPassword,
-        role: 'customer',
-        bio: 'Active resident hiring local experts for home maintenance.',
-        location: {
-          type: 'Point',
-          coordinates: [77.6412, 12.9784],
-          address: 'Indiranagar, Bengaluru',
-        },
-        address: 'Indiranagar, Bengaluru',
-        rating: 4.9,
+        kycStatus: 'verified',
+        maskedAadhaar: maskAadhaar('987612345678'),
+        aadhaarHash: hashAadhaar('987612345678'),
+        kycReferenceId: generateKycReference(),
+        kycVerifiedAt: new Date(),
+        phoneVerified: true,
+        emailVerified: true,
       },
     ]);
 
     const arun = users[0];
     const priya = users[1];
-    const rajesh = users[2];
-    const kavita = users[3];
+    const rahul = users[2];
+    const admin = users[3];
     const harinieWorker = users[4];
 
-    // Seed Gigs
+    // 2. Seed Gigs (including standard gigs and Night Work gigs)
     const gigs = await Gig.create([
       {
         title: 'Home Electrical Wiring Repair Needed',
@@ -159,46 +194,60 @@ const seedData = async () => {
         assignedTo: arun._id,
         status: 'completed',
         numberOfWorkers: 1,
+        isNightGig: false,
+        isStudentEligible: true,
+        minimumAge: 18,
+        safetyRating: 5.0,
       },
       {
-        title: 'Bathroom Leakage & Tap Replacement',
-        category: 'Plumbing',
-        description: 'Main shower fixture leaking heavily and need 2 new stainless steel taps installed.',
-        requiredSkills: ['Plumbing', 'Bathroom Fitting'],
-        budgetMin: 600,
-        budgetMax: 1200,
-        date: 'Tomorrow',
-        time: '10:00 AM',
+        title: 'Server Room Urgent Overnight Cable Routing',
+        category: 'Technology',
+        description: 'Late night network cable re-patching and rack organization for office data center.',
+        requiredSkills: ['WiFi Setup', 'Computer Hardware'],
+        budgetMin: 1800,
+        budgetMax: 3000,
+        date: 'Tonight',
+        time: '10:30 PM',
         duration: '3 Hours',
+        address: 'Indiranagar Tech Park, Bengaluru',
+        location: {
+          type: 'Point',
+          coordinates: [77.6412, 12.9784],
+        },
+        postedBy: priya._id,
+        status: 'open',
+        numberOfWorkers: 1,
+        isNightGig: true, // Night Gig Trigger
+        isStudentEligible: true,
+        minimumAge: 18,
+        safetyRating: 4.9,
+      },
+      {
+        title: 'Smart Home Automation & Alexa Voice Hub Setup',
+        category: 'Technology',
+        description: 'Need assistance setting up 6 smart lighting switches and connecting them to voice hub.',
+        requiredSkills: ['Smart Home Setup', 'WiFi & Network Config'],
+        budgetMin: 1200,
+        budgetMax: 2200,
+        date: 'Tomorrow',
+        time: '11:00 AM',
+        duration: '2 Hours',
         address: '5th Block Koramangala, Bengaluru',
         location: {
           type: 'Point',
           coordinates: [77.6245, 12.9352],
         },
         postedBy: priya._id,
+        status: 'open',
         numberOfWorkers: 1,
-      },
-      {
-        title: '2-BHK Wall Touch-up & Waterproof Painting',
-        category: 'Painting',
-        description: 'Living room accent wall touch-up and anti-dampness treatment.',
-        requiredSkills: ['Wall Painting', 'Waterproofing'],
-        budgetMin: 3000,
-        budgetMax: 6000,
-        date: 'This Weekend',
-        time: '9:00 AM',
-        duration: '1 Day',
-        address: 'Marathahalli Main Road, Bengaluru',
-        location: {
-          type: 'Point',
-          coordinates: [77.6974, 12.9698],
-        },
-        postedBy: kavita._id,
-        numberOfWorkers: 2,
+        isNightGig: false,
+        isStudentEligible: true,
+        minimumAge: 18,
+        safetyRating: 5.0,
       },
     ]);
 
-    // Seed Worker Services
+    // 3. Seed Worker Services
     await Service.create([
       {
         title: 'Express Electrical Repair & Appliance Setup',
@@ -217,20 +266,20 @@ const seedData = async () => {
         worker: arun._id,
       },
       {
-        title: 'Emergency Plumbing & High-Pressure Jetting',
-        category: 'Plumbing',
-        description: 'Unclogging drains, leak repair, pump motor replacement, and sanitary fittings.',
-        skills: ['Plumbing', 'Pipe Fitting', 'Water Heater Repair'],
-        experienceYears: 8,
-        startingPrice: 450,
+        title: 'Student Tech Support & Smart Home Configuration',
+        category: 'Technology',
+        description: 'Friendly student technician for PC troubleshooting, WiFi mesh setup, and homework tutoring.',
+        skills: ['Computer Hardware', 'WiFi Setup', 'Math Tutoring'],
+        experienceYears: 2,
+        startingPrice: 400,
         availability: 'available_now',
-        serviceAreaKm: 20,
+        serviceAreaKm: 15,
         address: 'Koramangala, Bengaluru',
         location: {
           type: 'Point',
           coordinates: [77.6245, 12.9352],
         },
-        worker: rajesh._id,
+        worker: rahul._id,
       },
       {
         title: 'Smart Home Hub & WiFi Automation Setup',
@@ -250,7 +299,29 @@ const seedData = async () => {
       },
     ]);
 
-    // Seed Reviews
+    // 4. Seed Applications & Earnings
+    const app1 = await Application.create({
+      gig: gigs[0]._id,
+      applicant: arun._id,
+      proposal: 'Licensed domestic wiring expert available immediately with all safety equipment.',
+      proposedRate: 1200,
+      estimatedTime: '2 Hours',
+      status: 'completed',
+    });
+
+    await Earning.create({
+      worker: arun._id,
+      employer: priya._id,
+      gig: gigs[0]._id,
+      title: 'Home Electrical Wiring Repair Needed',
+      amount: 1200,
+      hoursWorked: 2,
+      payoutStatus: 'paid',
+      paymentDate: new Date(),
+      escrowReleasedAt: new Date(),
+    });
+
+    // 5. Seed Reviews
     await Review.create([
       {
         reviewer: priya._id,
@@ -259,88 +330,66 @@ const seedData = async () => {
         toUser: arun._id,
         gig: gigs[0]._id,
         rating: 5,
-        comment: 'Arun identified and fixed our short circuit within 40 minutes! Very courteous, brought his own testing gear, and cleaned up after. Highly recommended.',
-      },
-      {
-        reviewer: kavita._id,
-        fromUser: kavita._id,
-        targetUser: arun._id,
-        toUser: arun._id,
-        rating: 4.8,
-        comment: 'Very skilled and arrived right on schedule. Did a thorough check on all circuit breakers in our apartment.',
+        comment: 'Arun identified and fixed our short circuit within 40 minutes! Very courteous, brought safety testing gear, and cleaned up after.',
       },
       {
         reviewer: priya._id,
         fromUser: priya._id,
-        targetUser: harinieWorker._id,
-        toUser: harinieWorker._id,
+        targetUser: rahul._id,
+        toUser: rahul._id,
         rating: 5,
-        comment: 'Outstanding smart home installation! Super responsive and configured all automation effortlessly.',
+        comment: 'Rahul is a fantastic student worker. Set up our mesh network flawlessly and explained how everything works.',
       },
     ]);
 
-    // Seed Applications
-    await Application.create([
-      {
-        gig: gigs[0]._id,
-        applicant: arun._id,
-        proposal: 'I have 6+ years of licensed domestic wiring experience and can fix the issue within 2 hours.',
-        proposedRate: 1200,
-        estimatedTime: '2 Hours',
-        status: 'completed',
-      },
-      {
-        gig: gigs[1]._id,
-        applicant: rajesh._id,
-        proposal: 'Expert plumber available immediately with all required replacement parts and sealants.',
-        proposedRate: 900,
-        estimatedTime: '3 Hours',
-        status: 'accepted',
-      },
-    ]);
-
-    // Seed Notifications (Recent Activity)
+    // 6. Seed Safety Notifications
     await Notification.create([
       {
         recipient: arun._id,
         sender: priya._id,
         type: 'review_received',
-        title: 'New 5-Star Review Received',
-        message: 'Priya Sharma left a 5-star review for Home Electrical Wiring Repair.',
+        title: '⭐️ 5-Star Review Received',
+        message: 'Priya Sharma (TechCorp) left a 5-star review for Home Electrical Wiring Repair.',
         read: false,
       },
       {
-        recipient: arun._id,
-        sender: priya._id,
-        type: 'gig_completed',
-        title: 'Gig Marked as Completed',
-        message: 'Home Electrical Wiring Repair has been successfully completed and approved.',
-        read: true,
+        recipient: rahul._id,
+        type: 'system',
+        title: '🛡 Student Safety Verification Active',
+        message: 'Your student enrollment at RV College of Engineering and Guardian Suresh Verma are fully verified.',
+        read: false,
       },
       {
-        recipient: arun._id,
-        sender: priya._id,
-        type: 'application_accepted',
-        title: 'Gig Proposal Accepted',
-        message: 'Priya Sharma accepted your proposal for Home Electrical Wiring Repair.',
-        read: true,
-      },
-      {
-        recipient: harinieWorker._id,
-        sender: priya._id,
-        type: 'review_received',
-        title: 'New 5-Star Review Received',
-        message: 'Priya Sharma left a 5-star review on your Smart Home Setup service.',
+        recipient: rahul._id,
+        type: 'system',
+        title: '🌙 Night Work Radar Ready',
+        message: 'You have access to verified night gigs. Guardian notifications will trigger automatically upon assignment.',
         read: false,
       },
     ]);
 
-    console.log('Database successfully seeded with realistic nearby data, reviews, and activity!');
-    process.exit(0);
+    console.log('Database successfully seeded with realistic verified users, students, employers, gigs, and financial ledger!');
+    return true;
   } catch (error) {
     console.error('Error seeding data:', error);
-    process.exit(1);
+    return false;
   }
 };
 
-seedData();
+const seedInitialDataIfEmpty = async () => {
+  try {
+    const gigCount = await Gig.countDocuments();
+    if (gigCount === 0) {
+      console.log('Detected empty database. Auto-seeding initial marketplace data...');
+      await seedData();
+    }
+  } catch (err) {
+    console.warn('Auto-seed check notice:', err.message);
+  }
+};
+
+if (require.main === module) {
+  seedData().then((ok) => process.exit(ok ? 0 : 1));
+}
+
+module.exports = { seedData, seedInitialDataIfEmpty };

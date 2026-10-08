@@ -16,6 +16,7 @@ import {
   Settings,
   ShieldCheck,
   ChevronRight,
+  AlertOctagon,
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -98,7 +99,19 @@ const Sidebar = () => {
         </NavLink>
       </div>
 
-      {/* SECTION 3: COMMUNICATION & ACCOUNT */}
+      {/* SECTION 3: SAFETY & SECURITY HUB */}
+      <div className="sidebar-group">
+        <div className="sidebar-label">SAFETY & TRUST</div>
+        <NavLink
+          to="/safety"
+          className={({ isActive }) => `sidebar-link safety-hub-link ${isActive ? 'active' : ''}`}
+        >
+          <ShieldCheck size={18} className="link-icon" color="#10b981" />
+          <span>Safety & Trust Hub</span>
+        </NavLink>
+      </div>
+
+      {/* SECTION 4: COMMUNICATION & ACCOUNT */}
       <div className="sidebar-group">
         <div className="sidebar-label">ACCOUNT & MESSAGES</div>
         <NavLink

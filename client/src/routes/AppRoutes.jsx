@@ -19,6 +19,7 @@ import MessagesPage from '../pages/messages/MessagesPage';
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import SettingsPage from '../pages/settings/SettingsPage';
+import SafetyCenterPage from '../pages/safety/SafetyCenterPage';
 
 // Protected Route Guard
 import ProtectedRoute from './ProtectedRoute';
@@ -132,6 +133,22 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/safety"
+        element={
+          <ProtectedRoute>
+            <SafetyCenterPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/safety"
+        element={
+          <ProtectedRoute>
+            <SafetyCenterPage />
           </ProtectedRoute>
         }
       />

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import Navbar from '../../components/navbar/Navbar';
 import { useAuthContext } from '../../context/AuthContext';
 import { useLocationContext } from '../../context/LocationContext';
+import { userService } from '../../services/userService';
 import {
   Mail,
   Lock,
@@ -31,20 +32,56 @@ const LoginPage = ({ initialTab = 'login' }) => {
 
   // Tab state: 'login' | 'register'
   const tabFromUrl = searchParams.get('tab');
+  const roleFromUrl = searchParams.get('role');
   const [activeTab, setActiveTab] = useState(
-    tabFromUrl === 'register' ? 'register' : initialTab
+    tabFromUrl === 'register' || roleFromUrl ? 'register' : initialTab
   );
 
-  useEffect(() => {
-    const param = searchParams.get('tab');
-    if (param === 'register' || param === 'login') {
-      setActiveTab(param);
-    } else if (initialTab) {
-      setActiveTab(initialTab);
-    }
-  }, [searchParams, initialTab]);
+  // Register form state
+  const [regRole, setRegRole] = useState(roleFromUrl === 'customer' ? 'customer' : 'worker');
+  const [regFormData, setRegFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    skills: '',
+  });
+  const [showRegPassword, setShowRegPassword] = useState(false);
 
-  // Sync tab with URL if needed
+  // Sync tab with URL and check saved onboarding data
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const roleParam = searchParams.get('role');
+    if (tabParam === 'register' || tabParam === 'login') {
+      setActiveTab(tabParam);
+    } else if (roleParam) {
+      setActiveTab('register');
+    }
+
+    if (roleParam === 'customer' || roleParam === 'worker') {
+      setRegRole(roleParam);
+    }
+
+    try {
+      const saved = localStorage.getItem('pending_onboarding');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role && !roleParam) {
+          setRegRole(parsed.role === 'both' ? 'worker' : parsed.role);
+        }
+        if (parsed.skills?.length) {
+          setRegFormData((prev) => ({
+            ...prev,
+            skills: Array.isArray(parsed.skills) ? parsed.skills.join(', ') : parsed.skills,
+          }));
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [searchParams]);
+
+  // Sync tab switch
   const handleTabSwitch = (newTab) => {
     setActiveTab(newTab);
     setError('');
@@ -56,17 +93,6 @@ const LoginPage = ({ initialTab = 'login' }) => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-
-  // Register form state
-  const [regRole, setRegRole] = useState('worker');
-  const [regFormData, setRegFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    phone: '',
-    skills: '',
-  });
-  const [showRegPassword, setShowRegPassword] = useState(false);
 
   // Status feedback
   const [error, setError] = useState('');
@@ -132,7 +158,7 @@ const LoginPage = ({ initialTab = 'login' }) => {
         ? regFormData.skills.split(',').map((s) => s.trim()).filter(Boolean)
         : [];
 
-      await register({
+      const regResult = await register({
         name: regFormData.name.trim(),
         email: regFormData.email.trim(),
         password: regFormData.password,
@@ -146,13 +172,24 @@ const LoginPage = ({ initialTab = 'login' }) => {
         },
       });
 
-      // Show success feedback and switch to sign in view with email prefilled
-      setSuccessMsg(
-        `Account created for ${regFormData.name}! You can now sign in below, or go straight to your dashboard.`
-      );
-      setLoginEmail(regFormData.email.trim());
-      setActiveTab('login');
-      setSearchParams({ tab: 'login' });
+      // Sync any pending onboarding bio/experience
+      try {
+        const saved = localStorage.getItem('pending_onboarding');
+        if (saved && regResult?.user?._id) {
+          const parsed = JSON.parse(saved);
+          await userService.updateProfile(regResult.user._id, {
+            bio: parsed.bio,
+            experience: Number(parsed.experience) || 0,
+            address: parsed.address,
+          });
+          localStorage.removeItem('pending_onboarding');
+        }
+      } catch (errSync) {
+        console.warn('Sync pending onboarding info error:', errSync);
+      }
+
+      // Redirect directly to Safety Verification Onboarding
+      navigate(`/onboarding?role=${regRole}`);
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -408,7 +445,7 @@ const LoginPage = ({ initialTab = 'login' }) => {
                     </div>
                     <div className="role-text-wrap">
                       <strong>I Want to Work</strong>
-                      <span>Offer services & earn</span>
+                      <span>Aadhaar KYC & Safety Verified</span>
                     </div>
                   </div>
 
@@ -423,7 +460,7 @@ const LoginPage = ({ initialTab = 'login' }) => {
                     </div>
                     <div className="role-text-wrap">
                       <strong>I Want to Hire</strong>
-                      <span>Post gigs & find pros</span>
+                      <span>Verified Employer & Safe Escrow</span>
                     </div>
                   </div>
                 </div>

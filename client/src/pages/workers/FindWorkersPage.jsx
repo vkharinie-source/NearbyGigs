@@ -24,11 +24,12 @@ import {
   Briefcase,
   ChevronRight,
   MessageSquare,
+  Crosshair,
 } from 'lucide-react';
 import './Workers.css';
 
 const FindWorkersPage = () => {
-  const { location } = useLocationContext();
+  const { location, requestBrowserLocation, startLiveTracking, isLiveTracking } = useLocationContext();
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -39,6 +40,7 @@ const FindWorkersPage = () => {
   const [category, setCategory] = useState(searchParams.get('category') || 'All');
   const [search, setSearch] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
+  const [locatingGps, setLocatingGps] = useState(false);
 
   // Request Service Modal State
   const [selectedWorker, setSelectedWorker] = useState(null);
@@ -70,6 +72,19 @@ const FindWorkersPage = () => {
   useEffect(() => {
     fetchWorkers();
   }, [location.lat, location.lng, radius, category]);
+
+  const handleLiveGpsClick = async () => {
+    try {
+      setLocatingGps(true);
+      if (startLiveTracking) startLiveTracking();
+      await requestBrowserLocation();
+      showToast('Live GPS location synchronized successfully!');
+    } catch (err) {
+      showToast('Could not retrieve browser GPS. Please allow location permissions.');
+    } finally {
+      setLocatingGps(false);
+    }
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -146,7 +161,32 @@ const FindWorkersPage = () => {
           <div className="toolbar-top-row">
             <div className="page-title-group">
               <h1>Find Verified Local Specialists</h1>
-              <p>Connect with vetted trade experts and local pros within <strong>{radius} km</strong>.</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                <p style={{ margin: 0 }}>
+                  Showing specialists near <strong>{location.address || 'Bengaluru, Karnataka'}</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleLiveGpsClick}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    color: '#2563eb',
+                    borderRadius: '9999px',
+                    padding: '3px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                  title="Update Current GPS Location"
+                >
+                  {locatingGps ? <Loader2 size={11} className="animate-spin" /> : <Crosshair size={11} />}
+                  <span>{locatingGps ? 'Syncing...' : isLiveTracking ? 'Live GPS Active' : 'Live Track GPS'}</span>
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSearchSubmit} className="toolbar-search-form">
@@ -292,16 +332,27 @@ const FindWorkersPage = () => {
                 </div>
                 <h3>No specialists found in this radius</h3>
                 <p>Try expanding your radius or browsing all trade categories.</p>
-                <button
-                  className="btn-secondary"
-                  onClick={() => {
-                    setCategory('All');
-                    setRadius(30);
-                    setSearch('');
-                  }}
-                >
-                  Reset Filters
-                </button>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setCategory('All');
+                      setRadius(50);
+                      setSearch('');
+                      fetchWorkers();
+                    }}
+                  >
+                    Reset Filters & Show All
+                  </button>
+                  <button
+                    className="btn-primary-sm"
+                    onClick={handleLiveGpsClick}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Crosshair size={14} />
+                    <span>Locate My GPS</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

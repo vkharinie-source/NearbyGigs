@@ -53,47 +53,73 @@ const getNearbyWorkers = async (req, res, next) => {
   try {
     const { lat, lng, radius = 15, category, skill, search, minPrice, maxPrice } = req.query;
 
-    const userLat = parseFloat(lat) || req.user?.location?.coordinates[1] || 12.9716;
-    const userLng = parseFloat(lng) || req.user?.location?.coordinates[0] || 77.5946;
-    const maxDistanceMeters = parseFloat(radius) * 1000;
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    const userLat = !isNaN(parsedLat) ? parsedLat : (req.user?.location?.coordinates?.[1] || 12.9716);
+    const userLng = !isNaN(parsedLng) ? parsedLng : (req.user?.location?.coordinates?.[0] || 77.5946);
+    const radiusKm = parseFloat(radius) > 0 ? parseFloat(radius) : 15;
+    const maxDistanceMeters = radiusKm * 1000;
 
-    let query = {
-      isActive: true,
-      location: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [userLng, userLat],
-          },
-          $maxDistance: maxDistanceMeters,
-        },
-      },
-    };
-
-    if (category) query.category = category;
-    if (skill) query.skills = { $in: [new RegExp(skill, 'i')] };
+    let baseFilter = { isActive: true };
+    if (category && category !== 'All') baseFilter.category = category;
+    if (skill) baseFilter.skills = { $in: [new RegExp(skill, 'i')] };
     if (search) {
-      query.$or = [
+      baseFilter.$or = [
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
         { skills: { $in: [new RegExp(search, 'i')] } },
       ];
     }
     if (minPrice || maxPrice) {
-      query.startingPrice = {};
-      if (minPrice) query.startingPrice.$gte = Number(minPrice);
-      if (maxPrice) query.startingPrice.$lte = Number(maxPrice);
+      baseFilter.startingPrice = {};
+      if (minPrice) baseFilter.startingPrice.$gte = Number(minPrice);
+      if (maxPrice) baseFilter.startingPrice.$lte = Number(maxPrice);
     }
 
-    const services = await Service.find(query)
-      .populate('worker', 'name email rating profileImage bio phone skills availability')
-      .lean();
+    let services = [];
 
-    const workersWithDistance = services.map(service => {
-      const [wLng, wLat] = service.location.coordinates;
-      const distKm = calculateHaversineKm(userLat, userLng, wLat, wLng);
+    // First attempt: Geospatial query within radius
+    try {
+      const geoQuery = {
+        ...baseFilter,
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [userLng, userLat],
+            },
+            $maxDistance: maxDistanceMeters,
+          },
+        },
+      };
+
+      services = await Service.find(geoQuery)
+        .populate('worker', 'name email rating profileImage bio phone skills availability')
+        .lean();
+    } catch (geoErr) {
+      console.warn('Geospatial $near query on services notice:', geoErr.message);
+    }
+
+    // Fallback: If no workers in strict radius circle, fetch active services matching filters
+    if (!services || services.length === 0) {
+      services = await Service.find(baseFilter)
+        .populate('worker', 'name email rating profileImage bio phone skills availability')
+        .sort('-createdAt')
+        .limit(50)
+        .lean();
+    }
+
+    const workersWithDistance = (services || []).map(service => {
+      const coords = service.location?.coordinates;
+      let distKm = 0;
+      if (coords && Array.isArray(coords) && coords.length >= 2) {
+        const [wLng, wLat] = coords;
+        distKm = calculateHaversineKm(userLat, userLng, Number(wLat), Number(wLng));
+      }
       return { ...service, distanceKm: parseFloat(distKm.toFixed(1)) };
     });
+
+    workersWithDistance.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
 
     res.json({ success: true, count: workersWithDistance.length, workers: workersWithDistance });
   } catch (error) {
