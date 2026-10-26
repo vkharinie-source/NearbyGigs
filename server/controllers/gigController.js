@@ -2,8 +2,9 @@ const Gig = require('../models/Gig');
 const User = require('../models/User');
 const { checkNightWork } = require('../utils/nightTimeUtils');
 const { logAuditEvent } = require('../utils/auditLogger');
+const { evaluateEligibility } = require('../utils/eligibilityEngine');
 
-// Create new Gig with Night-Work detection & Safety settings
+// Create new Gig / Job Listing with Night-Work detection & Safety settings
 const createGig = async (req, res, next) => {
   try {
     const {
@@ -13,17 +14,28 @@ const createGig = async (req, res, next) => {
       requiredSkills,
       budgetMin,
       budgetMax,
+      salaryType,
+      jobType,
       date,
       time,
       duration,
+      workDate,
+      startTime,
+      endTime,
+      recurringSchedule,
+      deadline,
       address,
       latitude,
       longitude,
       numberOfWorkers,
+      requiredExperience,
       additionalRequirements,
+      evidenceRequirements,
+      attendanceMethod,
       isStudentEligible,
       minimumAge,
       cancellationPolicy,
+      status,
     } = req.body;
 
     if (!title || !category || !description) {
@@ -37,20 +49,41 @@ const createGig = async (req, res, next) => {
     const lng = parseFloat(longitude) || req.user.location?.coordinates[0] || 77.5946;
 
     // Automatic Night-work detection
-    const nightCheck = checkNightWork(time || '', date || '');
+    const nightCheck = checkNightWork(time || startTime || '', date || workDate || '');
+
+    // Normalize required skills
+    const skillsList = Array.isArray(requiredSkills)
+      ? requiredSkills.map((s) => String(s).trim()).filter(Boolean)
+      : typeof requiredSkills === 'string'
+      ? requiredSkills.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    // Evidence requirements array
+    const evidenceList = Array.isArray(evidenceRequirements)
+      ? evidenceRequirements
+      : typeof evidenceRequirements === 'string'
+      ? evidenceRequirements.split(',').map((s) => s.trim()).filter(Boolean)
+      : ['task_checklist', 'deliverable_link'];
+
+    const gigStatus = status && ['open', 'draft', 'paused'].includes(status) ? status : 'open';
 
     const gig = await Gig.create({
       title: title.trim(),
       category: category.trim(),
       description: description.trim(),
-      requiredSkills: Array.isArray(requiredSkills)
-        ? requiredSkills
-        : requiredSkills ? requiredSkills.split(',').map((s) => s.trim()).filter(Boolean) : [],
+      requiredSkills: skillsList,
       budgetMin: minB,
       budgetMax: maxB,
+      salaryType: salaryType || 'Fixed',
+      jobType: jobType || 'On-site',
       date: date || 'Today',
       time: time || 'Flexible',
       duration: duration || '2-3 Hours',
+      workDate: workDate ? new Date(workDate) : undefined,
+      startTime: startTime || '',
+      endTime: endTime || '',
+      recurringSchedule: recurringSchedule || 'One-time',
+      deadline: deadline ? new Date(deadline) : undefined,
       address: address || req.user.location?.address || 'Bengaluru, Karnataka',
       location: {
         type: 'Point',
@@ -58,7 +91,11 @@ const createGig = async (req, res, next) => {
       },
       postedBy: req.user._id,
       numberOfWorkers: Number(numberOfWorkers) || 1,
+      requiredExperience: Number(requiredExperience) || 0,
       additionalRequirements: additionalRequirements || '',
+      evidenceRequirements: evidenceList,
+      attendanceMethod: attendanceMethod || 'otp',
+      status: gigStatus,
       isNightGig: nightCheck.isNight,
       isStudentEligible: isStudentEligible !== undefined ? Boolean(isStudentEligible) : true,
       minimumAge: Number(minimumAge) || 18,
@@ -72,7 +109,7 @@ const createGig = async (req, res, next) => {
       req,
       resourceType: 'Gig',
       resourceId: gig._id,
-      metadata: { isNightGig: gig.isNightGig, category: gig.category },
+      metadata: { isNightGig: gig.isNightGig, category: gig.category, jobType: gig.jobType },
     });
 
     res.status(201).json({ success: true, gig });
@@ -81,22 +118,47 @@ const createGig = async (req, res, next) => {
   }
 };
 
-// Get Nearby Gigs with filters, privacy projection & distance calculation
+// Get Nearby Gigs with smart filters, distance calculation & personalized eligibility
 const getNearbyGigs = async (req, res, next) => {
   try {
-    const { lat, lng, radius, category, search, minBudget, maxBudget, nightOnly, studentOnly } = req.query;
+    const {
+      lat,
+      lng,
+      radius,
+      category,
+      search,
+      minBudget,
+      maxBudget,
+      nightOnly,
+      studentOnly,
+      jobType,
+      experienceLevel,
+      verifiedOnly,
+      status,
+    } = req.query;
 
     const parsedLat = parseFloat(lat);
     const parsedLng = parseFloat(lng);
     const userLat = !isNaN(parsedLat) ? parsedLat : (req.user?.location?.coordinates?.[1] || 12.9716);
     const userLng = !isNaN(parsedLng) ? parsedLng : (req.user?.location?.coordinates?.[0] || 77.5946);
-    const radiusKm = parseFloat(radius) > 0 ? parseFloat(radius) : 25;
+    const radiusKm = parseFloat(radius) > 0 ? parseFloat(radius) : 50;
     const maxDistanceMeters = radiusKm * 1000;
 
-    let baseFilter = { status: 'open' };
+    let baseFilter = {};
+    if (status && ['open', 'in_progress', 'completed', 'all'].includes(status)) {
+      if (status !== 'all') baseFilter.status = status;
+    } else {
+      baseFilter.status = 'open';
+    }
+
     if (category && category !== 'All') baseFilter.category = category;
     if (nightOnly === 'true') baseFilter.isNightGig = true;
     if (studentOnly === 'true') baseFilter.isStudentEligible = true;
+    if (jobType && ['On-site', 'Remote', 'Hybrid'].includes(jobType)) baseFilter.jobType = jobType;
+    if (experienceLevel) {
+      const expNum = Number(experienceLevel);
+      if (!isNaN(expNum)) baseFilter.requiredExperience = { $lte: expNum };
+    }
 
     if (search && typeof search === 'string') {
       const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -115,7 +177,7 @@ const getNearbyGigs = async (req, res, next) => {
 
     let gigs = [];
 
-    // Geospatial query attempt
+    // Attempt geospatial query if within reasonable bounds
     try {
       const geoQuery = {
         ...baseFilter,
@@ -131,60 +193,86 @@ const getNearbyGigs = async (req, res, next) => {
       };
 
       gigs = await Gig.find(geoQuery)
-        .populate('postedBy', 'name rating profileImage employerStatus companyName')
+        .populate('postedBy', 'name rating profileImage employerStatus companyName phone email')
         .lean();
     } catch (geoErr) {
-      console.warn('Geospatial $near query notice:', geoErr.message);
+      // Fallback to standard indexed search
     }
 
-    // Fallback if no geo matches
     if (!gigs || gigs.length === 0) {
       gigs = await Gig.find(baseFilter)
-        .populate('postedBy', 'name rating profileImage employerStatus companyName')
+        .populate('postedBy', 'name rating profileImage employerStatus companyName phone email')
         .sort('-createdAt')
-        .limit(50)
+        .limit(100)
         .lean();
     }
 
-    // Attach Haversine distance in KM
-    const gigsWithDistance = (gigs || []).map((gig) => {
+    // Attach Haversine distance, employer verification & smart eligibility calculation
+    let gigsWithDetails = (gigs || []).map((gig) => {
       const coords = gig.location?.coordinates;
       let distKm = 0;
       if (coords && Array.isArray(coords) && coords.length >= 2) {
         const [gLng, gLat] = coords;
         distKm = calculateHaversineKm(userLat, userLng, Number(gLat), Number(gLng));
       }
+
+      const isVerifiedEmp = gig.postedBy?.employerStatus === 'VERIFIED';
+
+      // Smart Eligibility Engine evaluation
+      const eligibility = evaluateEligibility(req.user, gig);
+
+      // Check if user has saved this gig
+      const isSaved = Boolean(
+        req.user?.savedGigs?.some((sg) => sg.toString() === gig._id.toString())
+      );
+
       return {
         ...gig,
         distanceKm: parseFloat(distKm.toFixed(1)),
-        isVerifiedEmployer: gig.postedBy?.employerStatus === 'VERIFIED',
+        isVerifiedEmployer: isVerifiedEmp,
+        eligibility,
+        isSaved,
       };
     });
 
-    gigsWithDistance.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+    if (verifiedOnly === 'true') {
+      gigsWithDetails = gigsWithDetails.filter((g) => g.isVerifiedEmployer);
+    }
 
-    res.json({ success: true, count: gigsWithDistance.length, gigs: gigsWithDistance });
+    res.json({
+      success: true,
+      count: gigsWithDetails.length,
+      gigs: gigsWithDetails,
+    });
   } catch (error) {
     next(error);
   }
 };
 
-// Get Gig by ID
+// Get Gig by ID with full details & smart eligibility
 const getGigById = async (req, res, next) => {
   try {
     const gig = await Gig.findById(req.params.id)
-      .populate('postedBy', 'name rating bio profileImage employerStatus companyName')
-      .populate('assignedTo', 'name rating profileImage');
+      .populate('postedBy', 'name rating bio profileImage employerStatus companyName phone')
+      .populate('assignedTo', 'name rating profileImage bio skills');
 
     if (!gig) {
       return res.status(404).json({ success: false, message: 'Gig not found' });
     }
 
+    const gigObj = gig.toObject();
+    const eligibility = evaluateEligibility(req.user, gigObj);
+    const isSaved = Boolean(
+      req.user?.savedGigs?.some((sg) => sg.toString() === gig._id.toString())
+    );
+
     res.json({
       success: true,
       gig: {
-        ...gig.toObject(),
+        ...gigObj,
         isVerifiedEmployer: gig.postedBy?.employerStatus === 'VERIFIED',
+        eligibility,
+        isSaved,
       },
     });
   } catch (error) {
@@ -205,8 +293,10 @@ const updateGig = async (req, res, next) => {
     }
 
     // Check night work if time or date is updated
-    if (req.body.time || req.body.date) {
-      const nightCheck = checkNightWork(req.body.time || gig.time, req.body.date || gig.date);
+    if (req.body.time || req.body.date || req.body.startTime) {
+      const checkT = req.body.time || req.body.startTime || gig.time;
+      const checkD = req.body.date || req.body.workDate || gig.date;
+      const nightCheck = checkNightWork(checkT, checkD);
       req.body.isNightGig = nightCheck.isNight;
     }
 
@@ -219,6 +309,43 @@ const updateGig = async (req, res, next) => {
       req,
       resourceType: 'Gig',
       resourceId: gig._id,
+    });
+
+    res.json({ success: true, gig });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update Gig Lifecycle Status (Draft, Pause, Close, Publish)
+const updateGigStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['open', 'draft', 'paused', 'closed', 'cancelled'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowed.join(', ')}` });
+    }
+
+    const gig = await Gig.findById(req.params.id);
+    if (!gig) {
+      return res.status(404).json({ success: false, message: 'Gig not found.' });
+    }
+
+    if (gig.postedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to change this gig status.' });
+    }
+
+    gig.status = status;
+    await gig.save();
+
+    await logAuditEvent({
+      user: req.user._id,
+      action: 'GIG_STATUS_CHANGED',
+      status: 'SUCCESS',
+      req,
+      resourceType: 'Gig',
+      resourceId: gig._id,
+      metadata: { newStatus: status },
     });
 
     res.json({ success: true, gig });
@@ -266,7 +393,55 @@ const getMyGigs = async (req, res, next) => {
   }
 };
 
-// Haversine distance formula
+// Save / Bookmark a Gig for Later
+const saveGig = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const gigId = req.params.id;
+
+    if (!user.savedGigs.includes(gigId)) {
+      user.savedGigs.push(gigId);
+      await user.save();
+      await Gig.findByIdAndUpdate(gigId, { $inc: { savedByCount: 1 } });
+    }
+
+    res.json({ success: true, message: 'Job saved to your bookmarks.', savedGigs: user.savedGigs });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Unsave / Remove Bookmark
+const unsaveGig = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const gigId = req.params.id;
+
+    user.savedGigs = user.savedGigs.filter((id) => id.toString() !== gigId.toString());
+    await user.save();
+    await Gig.findByIdAndUpdate(gigId, { $inc: { savedByCount: -1 } });
+
+    res.json({ success: true, message: 'Job removed from bookmarks.', savedGigs: user.savedGigs });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get My Saved Gigs
+const getMySavedGigs = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: 'savedGigs',
+      populate: { path: 'postedBy', select: 'name rating profileImage employerStatus companyName' },
+    });
+
+    res.json({ success: true, gigs: user?.savedGigs || [] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Haversine distance formula in KM
 function calculateHaversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371; // Earth radius in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -286,6 +461,10 @@ module.exports = {
   getNearbyGigs,
   getGigById,
   updateGig,
+  updateGigStatus,
   deleteGig,
   getMyGigs,
+  saveGig,
+  unsaveGig,
+  getMySavedGigs,
 };

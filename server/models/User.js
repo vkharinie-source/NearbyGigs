@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema(
     profileImage: { type: String, default: '' },
     role: {
       type: String,
-      enum: ['customer', 'worker', 'student_worker', 'employer', 'both', 'admin'],
+      enum: ['customer', 'worker', 'student_worker', 'employer', 'both', 'admin', 'teacher'],
       default: 'customer',
     },
     bio: { type: String, default: '' },
@@ -120,6 +120,101 @@ const userSchema = new mongoose.Schema(
       },
       locationPermissionGranted: { type: Boolean, default: false },
     },
+
+    // ==========================================
+    // 6. ONBOARDING & EXTENDED PROFILES
+    // ==========================================
+    purpose: {
+      type: String,
+      enum: ['find_work', 'post_jobs', 'offer_services', 'both'],
+      default: 'find_work',
+    },
+    userType: {
+      type: String,
+      enum: ['school_student', 'college_student', 'graduate', 'professional', 'teacher', 'employer', 'both'],
+      default: 'professional',
+    },
+    onboardingCompleted: { type: Boolean, default: false },
+    country: { type: String, default: 'India' },
+
+    // School Student Specific Safeguards
+    school: {
+      name: { type: String, default: '' },
+      grade: { type: String, default: '' },
+      daytimeAvailability: { type: String, default: 'After School (3 PM - 7 PM)' },
+      generalServiceArea: { type: String, default: '' },
+      parentConsentVerified: { type: Boolean, default: false },
+      parentConsentApprovedAt: { type: Date },
+    },
+
+    // Graduate or Unemployed Job Seeker Profile
+    graduate: {
+      degree: { type: String, default: '' },
+      university: { type: String, default: '' },
+      graduationYear: { type: Number },
+      degreeDocUrl: { type: String, default: '' },
+      verificationStatus: {
+        type: String,
+        enum: ['unverified', 'pending', 'verified', 'rejected', 'additional_info_required'],
+        default: 'unverified',
+      },
+      verifiedAt: { type: Date },
+    },
+
+    // Teacher or Tutor Profile
+    teacher: {
+      subjects: [{ type: String }],
+      grades: [{ type: String }],
+      qualifications: [{ type: String }],
+      teachingExperience: { type: Number, default: 0 },
+      credentialsDocUrl: { type: String, default: '' },
+      teachingMode: { type: String, enum: ['online', 'in_person', 'both'], default: 'both' },
+      languages: [{ type: String }],
+      verificationStatus: {
+        type: String,
+        enum: ['unverified', 'pending', 'verified', 'rejected', 'additional_info_required'],
+        default: 'unverified',
+      },
+      verifiedAt: { type: Date },
+    },
+
+    // Professional Worker Profile
+    professionalVerificationStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'verified', 'rejected', 'additional_info_required'],
+      default: 'unverified',
+    },
+    professionalVerifiedAt: { type: Date },
+    certifications: [{ type: String }],
+    portfolioLinks: [{ type: String }],
+    expectedRate: { type: Number, default: 0 },
+    rateType: { type: String, enum: ['Hourly', 'Fixed', 'Monthly'], default: 'Hourly' },
+    workArea: { type: String, default: '' },
+
+    // Generic Document Submissions & Audit
+    documents: [
+      {
+        docType: { type: String, required: true },
+        fileName: { type: String, required: true },
+        fileUrl: { type: String, default: '' },
+        fileSize: { type: String, default: '' },
+        status: {
+          type: String,
+          enum: ['not_submitted', 'submitted', 'pending', 'verified', 'rejected', 'additional_info_required'],
+          default: 'pending',
+        },
+        submittedAt: { type: Date, default: Date.now },
+        verifiedAt: { type: Date },
+        rejectionReason: { type: String, default: '' },
+      },
+    ],
+
+    // Employer / Business Category
+    businessCategory: { type: String, default: '' },
+    businessLocation: { type: String, default: '' },
+
+    // Bookmarked / Saved Gigs
+    savedGigs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Gig' }],
   },
   { timestamps: true }
 );

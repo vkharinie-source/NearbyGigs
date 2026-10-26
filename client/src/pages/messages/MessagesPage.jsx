@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/navbar/Navbar';
 import Sidebar from '../../components/sidebar/Sidebar';
 import { messageService } from '../../services/messageService';
@@ -14,12 +15,18 @@ import {
   Phone,
   Sparkles,
   Loader2,
+  Users,
 } from 'lucide-react';
 import './Messages.css';
 
 const MessagesPage = () => {
   const { user } = useAuthContext();
+  const [searchParams] = useSearchParams();
+  const targetUserId = searchParams.get('userId');
+  const targetUserName = searchParams.get('name');
+
   const [conversations, setConversations] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [activeUser, setActiveUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputMsg, setInputMsg] = useState('');
@@ -28,17 +35,50 @@ const MessagesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const messagesEndRef = useRef(null);
 
+  // Fallback demo contacts
+  const defaultContacts = [
+    { _id: '674500000000000000000002', name: 'Arun Kumar', role: 'Electrician & Pro Worker', email: 'arun@example.com' },
+    { _id: '674500000000000000000003', name: 'Priya Sharma', role: 'Shop Owner & Employer', email: 'priya@example.com' },
+    { _id: '674500000000000000000004', name: 'Rahul Verma', role: 'Student Worker', email: 'rahul@example.com' },
+    { _id: '674500000000000000000005', name: 'Meera Nair', role: 'Cleaning Specialist', email: 'meera@example.com' },
+  ].filter((c) => c._id !== user?._id && c.email !== user?.email);
+
   const fetchConversations = async () => {
     try {
       setLoading(true);
-      const data = await messageService.getConversations();
-      const convList = data.conversations || [];
+      const [convRes, contactsRes] = await Promise.allSettled([
+        messageService.getConversations(),
+        messageService.getContacts(),
+      ]);
+
+      const convList = convRes.status === 'fulfilled' ? (convRes.value.conversations || []) : [];
       setConversations(convList);
-      if (convList.length > 0 && !activeUser) {
+
+      const realContacts = contactsRes.status === 'fulfilled' ? (contactsRes.value.contacts || []) : [];
+      const filteredRealContacts = realContacts.filter(
+        (c) => c._id !== user?._id && c._id !== user?.id && c.email !== user?.email
+      );
+      setContacts(filteredRealContacts);
+
+      if (targetUserId) {
+        // User came from "Chat" button with specific recipient
+        setActiveUser({
+          _id: targetUserId,
+          name: targetUserName ? decodeURIComponent(targetUserName) : 'Specialist',
+          role: 'worker',
+        });
+      } else if (convList.length > 0) {
         setActiveUser(convList[0].user);
+      } else if (filteredRealContacts.length > 0) {
+        setActiveUser(filteredRealContacts[0]);
+      } else if (defaultContacts.length > 0) {
+        setActiveUser(defaultContacts[0]);
       }
     } catch (err) {
       console.error('Error loading conversations:', err);
+      if (defaultContacts.length > 0) {
+        setActiveUser(defaultContacts[0]);
+      }
     } finally {
       setLoading(false);
     }
@@ -59,7 +99,7 @@ const MessagesPage = () => {
   }, []);
 
   useEffect(() => {
-    if (activeUser) {
+    if (activeUser && activeUser._id) {
       fetchChatMessages(activeUser._id);
     }
   }, [activeUser]);
@@ -70,19 +110,34 @@ const MessagesPage = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputMsg.trim() || !activeUser) return;
+    const textToSend = inputMsg.trim();
+    if (!textToSend || !activeUser) return;
 
     setSending(true);
     try {
-      await messageService.sendMessage({
+      const data = await messageService.sendMessage({
         recipientId: activeUser._id,
-        content: inputMsg.trim(),
+        recipientEmail: activeUser.email,
+        content: textToSend,
       });
+
       setInputMsg('');
-      fetchChatMessages(activeUser._id);
+
+      // Add message immediately to the UI thread
+      if (data.message) {
+        setMessages((prev) => [...prev, data.message]);
+        const finalRecipientId = data.message.recipient || activeUser._id;
+        if (data.message.recipient && data.message.recipient !== activeUser._id) {
+          setActiveUser((prev) => ({ ...prev, _id: data.message.recipient }));
+        }
+        fetchChatMessages(finalRecipientId);
+      } else if (activeUser._id) {
+        fetchChatMessages(activeUser._id);
+      }
       fetchConversations();
     } catch (err) {
-      alert('Failed to send message.');
+      console.error('Failed to send message:', err);
+      alert(err.response?.data?.message || 'Failed to send message.');
     } finally {
       setSending(false);
     }
@@ -90,6 +145,12 @@ const MessagesPage = () => {
 
   const filteredConversations = conversations.filter((c) =>
     c.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const displayedContacts = (contacts.length > 0 ? contacts : defaultContacts).filter(
+    (c) =>
+      c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.role && c.role.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -165,10 +226,34 @@ const MessagesPage = () => {
                     );
                   })
                 ) : (
-                  <div className="empty-convs-box">
-                    <MessageSquare size={32} color="#94a3b8" />
-                    <h4>No conversations yet</h4>
-                    <p>Connect with a nearby customer or worker to start chatting.</p>
+                  <div className="empty-convs-box" style={{ padding: '0.75rem 0.25rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.65rem', paddingLeft: '0.5rem' }}>
+                      Start Chat with Active Members:
+                    </div>
+                    {displayedContacts.map((contact) => (
+                      <div
+                        key={contact._id}
+                        className={`conv-item-card ${activeUser?._id === contact._id ? 'active' : ''}`}
+                        onClick={() => {
+                          setActiveUser(contact);
+                          fetchChatMessages(contact._id);
+                        }}
+                        style={{ cursor: 'pointer', marginBottom: '0.5rem' }}
+                      >
+                        <div className="conv-user-avatar">
+                          {contact.name ? contact.name.charAt(0).toUpperCase() : 'U'}
+                          <span className="online-indicator-dot" />
+                        </div>
+                        <div className="conv-item-body">
+                          <div className="conv-name-row">
+                            <span className="conv-user-name">{contact.name}</span>
+                          </div>
+                          <p className="conv-preview-text" style={{ color: '#2563eb', fontWeight: 500 }}>
+                            {contact.role || contact.userType || 'Verified Member'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

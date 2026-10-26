@@ -29,4 +29,25 @@ export const adminService = {
     const res = await API.get('/admin/audit-logs', { params });
     return res.data;
   },
+  // Section 5: Dispute Resolution Dashboard
+  getDisputes: async (params = {}) => {
+    const res = await API.get('/admin/disputes', { params });
+    return res.data;
+  },
+  getDisputeDetails: async (id) => {
+    const res = await API.get(`/admin/disputes/${id}`);
+    return res.data;
+  },
+  requestDisputeInfo: async (id, data) => {
+    const res = await API.post(`/admin/disputes/${id}/request-info`, data);
+    return res.data;
+  },
+  resolveDispute: async (id, data) => {
+    const res = await API.post(`/admin/disputes/${id}/resolve`, data);
+    return res.data;
+  },
+  reopenDispute: async (id, data) => {
+    const res = await API.post(`/admin/disputes/${id}/reopen`, data);
+    return res.data;
+  },
 };

@@ -87,8 +87,9 @@
 }
 
 .settings-nav-btn.active {
-  background: var(--primary-50, #eff6ff);
-  color: var(--primary-600, #2563eb);
+  background: #E6FFFA !important;
+  color: #0F766E !important;
+  font-weight: 700;
 }
 
 /* Panel Card */
@@ -148,26 +149,31 @@
 .modern-input,
 .modern-select {
   padding: 0.75rem 1rem;
-  border: 1px solid var(--border-color, #cbd5e1);
+  border: 1.5px solid #CBD5E1;
   border-radius: var(--radius-md, 0.6rem);
   font-size: 0.9rem;
-  background: #f8fafc;
-  color: var(--neutral-900, #0f172a);
+  background: #FFFFFF !important;
+  color: #0F172A !important;
   transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .modern-input:focus,
 .modern-select:focus {
   outline: none;
-  background: white;
-  border-color: var(--primary-500, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #FFFFFF !important;
+  border-color: #0F766E !important;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
 }
 
 .modern-input:disabled {
-  background: #f1f5f9;
+  background: #F8FAFC !important;
+  color: #334155 !important;
+  border: 1.5px solid #E2E8F0 !important;
   cursor: not-allowed;
-  opacity: 0.8;
+  opacity: 1;
+  font-weight: 600;
 }
 
 .form-help {
@@ -415,7 +421,7 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--primary-600, #2563eb);
+  background: #0F766E !important;
   color: white;
   padding: 0.75rem 1.75rem;
   font-size: 0.92rem;
@@ -423,11 +429,11 @@ input:checked + .slider:before {
   border-radius: var(--radius-md, 0.6rem);
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.25);
   transition: all 0.2s ease;
 }
 
 .btn-primary-modern:hover {
-  background: var(--primary-700, #1d4ed8);
+  background: #115E59 !important;
   transform: translateY(-1px);
 }

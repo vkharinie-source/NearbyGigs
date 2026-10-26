@@ -20,11 +20,35 @@ const gigSchema = new mongoose.Schema(
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     status: {
       type: String,
-      enum: ['open', 'assigned', 'in_progress', 'completed', 'cancelled'],
+      enum: ['open', 'assigned', 'in_progress', 'completed', 'cancelled', 'draft', 'paused', 'closed'],
       default: 'open',
     },
+    jobType: {
+      type: String,
+      enum: ['On-site', 'Remote', 'Hybrid'],
+      default: 'On-site',
+    },
+    salaryType: {
+      type: String,
+      enum: ['Hourly', 'Fixed', 'Monthly'],
+      default: 'Fixed',
+    },
+    workDate: { type: Date },
+    startTime: { type: String, default: '' },
+    endTime: { type: String, default: '' },
+    recurringSchedule: { type: String, default: 'One-time' },
+    deadline: { type: Date },
+    requiredExperience: { type: Number, default: 0 },
     numberOfWorkers: { type: Number, default: 1 },
     additionalRequirements: { type: String },
+    evidenceRequirements: [{ type: String }], // e.g. 'portfolio', 'task_checklist', 'completion_photos', 'deliverable_link'
+    attendanceMethod: {
+      type: String,
+      enum: ['otp', 'qr_code', 'manual_confirmation', 'none'],
+      default: 'otp',
+    },
+    applicantsCount: { type: Number, default: 0 },
+    savedByCount: { type: Number, default: 0 },
 
     // Safety & Verification Enhancements
     isNightGig: { type: Boolean, default: false },

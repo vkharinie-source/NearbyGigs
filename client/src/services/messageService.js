@@ -13,4 +13,8 @@ export const messageService = {
     const res = await API.get(`/messages/user/${userId}`);
     return res.data;
   },
+  getContacts: async () => {
+    const res = await API.get('/messages/contacts');
+    return res.data;
+  },
 };

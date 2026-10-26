@@ -8,6 +8,11 @@ const {
   getEmergencyAlerts,
   updateEmergencyAlertStatus,
   getAuditLogs,
+  getDisputes,
+  getDisputeDetails,
+  requestDisputeInfo,
+  resolveDispute,
+  reopenDispute,
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -25,5 +30,12 @@ router.get('/sos-alerts', getEmergencyAlerts);
 router.put('/sos-alerts/:id/status', updateEmergencyAlertStatus);
 
 router.get('/audit-logs', getAuditLogs);
+
+// Section 5: Dispute Resolution Dashboard
+router.get('/disputes', getDisputes);
+router.get('/disputes/:id', getDisputeDetails);
+router.post('/disputes/:id/request-info', requestDisputeInfo);
+router.post('/disputes/:id/resolve', resolveDispute);
+router.post('/disputes/:id/reopen', reopenDispute);
 
 module.exports = router;

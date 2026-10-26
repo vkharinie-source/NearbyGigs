@@ -50,20 +50,57 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const data = await authService.register(userData);
-      setUser(data.user);
+      // User must sign in first before accessing dashboard, do not set user here
       return data;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    authService.logout();
+  const choosePurpose = async (purpose) => {
+    setLoading(true);
+    try {
+      const data = await authService.choosePurpose(purpose);
+      if (data.user) {
+        setUser((prev) => ({ ...prev, ...data.user }));
+      }
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const fresh = await authService.getCurrentUser();
+      if (fresh) {
+        setUser(fresh);
+        localStorage.setItem('user', JSON.stringify(fresh));
+      }
+      return fresh;
+    } catch (e) {
+      console.warn('Refresh user error:', e);
+    }
+  };
+
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        loading,
+        login,
+        register,
+        choosePurpose,
+        refreshUser,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

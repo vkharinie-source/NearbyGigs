@@ -1,32 +1,88 @@
-﻿const Review = require('../models/Review');
+const Review = require('../models/Review');
 const Application = require('../models/Application');
 const Gig = require('../models/Gig');
 const Job = require('../models/Job');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
-// @desc    Create a review
+// @desc    Create a review for completed work
 // @route   POST /api/reviews
 // @access  Private
 const createReview = async (req, res) => {
-  const { gigId, jobId, targetUserId, rating, comment } = req.body;
+  const { gigId, jobId, applicationId, targetUserId, rating, comment } = req.body;
 
   try {
     const fromUserId = req.user._id;
-    const toUserId = targetUserId;
+    let toUserId = targetUserId;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5 stars.' });
+    }
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({ success: false, message: 'Written review feedback is required.' });
+    }
+
+    let application = null;
+    if (applicationId) {
+      application = await Application.findById(applicationId).populate('gig');
+      if (!application) {
+        return res.status(404).json({ success: false, message: 'Associated application not found.' });
+      }
+
+      // Ensure work is completed and confirmed
+      const isConfirmed =
+        ['completed_confirmed', 'completed'].includes(application.workCompletion?.status) ||
+        application.status === 'completed';
+
+      if (!isConfirmed) {
+        return res.status(400).json({
+          success: false,
+          message: 'Reviews are only permitted after the job has been completed and confirmed by both parties.',
+        });
+      }
+
+      // Check for duplicate review by this user on this application
+      const existingReview = await Review.findOne({
+        application: applicationId,
+        reviewer: fromUserId,
+      });
+
+      if (existingReview) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already submitted an eligible review for this completed job.',
+        });
+      }
+
+      // Infer target user if not specified
+      const isWorker = application.applicant.toString() === fromUserId.toString();
+      if (!toUserId) {
+        toUserId = isWorker ? application.gig.postedBy : application.applicant;
+      }
+    }
 
     if (!toUserId) {
-      return res.status(400).json({ message: 'Target user is required for review' });
+      return res.status(400).json({ success: false, message: 'Target user is required for review.' });
     }
+
+    if (toUserId.toString() === fromUserId.toString()) {
+      return res.status(400).json({ success: false, message: 'You cannot review yourself.' });
+    }
+
+    const isWorkerReviewer = application && application.applicant.toString() === fromUserId.toString();
 
     const review = new Review({
       reviewer: fromUserId,
       fromUser: fromUserId,
       targetUser: toUserId,
       toUser: toUserId,
-      gig: gigId,
+      gig: gigId || (application ? application.gig._id : undefined),
       job: jobId,
+      application: applicationId || undefined,
+      role: isWorkerReviewer ? 'worker' : 'employer',
       rating: Number(rating),
-      comment,
+      comment: comment.trim(),
     });
 
     await review.save();
@@ -42,9 +98,35 @@ const createReview = async (req, res) => {
       await user.save();
     }
 
-    res.status(201).json(review);
+    // Update Application ratings flags
+    if (application) {
+      if (!application.workCompletion.ratings) {
+        application.workCompletion.ratings = {};
+      }
+      if (isWorkerReviewer) {
+        application.workCompletion.ratings.workerRated = true;
+        application.workCompletion.ratings.workerRatingId = review._id;
+      } else {
+        application.workCompletion.ratings.employerRated = true;
+        application.workCompletion.ratings.employerRatingId = review._id;
+      }
+      await application.save();
+    }
+
+    // Send notification to recipient
+    await Notification.create({
+      recipient: toUserId,
+      sender: fromUserId,
+      type: 'review_received',
+      title: '⭐ New Rating & Feedback Received!',
+      message: `${req.user.name} rated you ${rating} stars: "${comment.trim().substring(0, 100)}"`,
+      link: '/profile',
+    });
+
+    res.status(201).json({ success: true, message: 'Review submitted successfully.', review });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error creating review:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

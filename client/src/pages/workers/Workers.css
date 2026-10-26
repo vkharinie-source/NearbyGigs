@@ -1,6 +1,47 @@
-/* ==========================================================================
-   NEARBYGIG FIND WORKERS PAGE STYLES
-   ========================================================================== */
+/* Two-Column Marketplace Split View (Cards + Sticky Map) */
+.marketplace-split-view {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+.marketplace-cards-column {
+  min-width: 0;
+}
+
+.marketplace-map-column {
+  position: relative;
+}
+
+.sticky-map-wrapper {
+  position: sticky;
+  top: 90px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  max-height: calc(100vh - 120px);
+}
+
+.map-badge-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.results-count-bar {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  margin-bottom: 0.85rem;
+}
 
 .workers-grid-stack {
   display: flex;
@@ -9,19 +50,19 @@
 }
 
 .worker-card-premium {
-  background: #ffffff;
-  border: 1px solid var(--bg-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
-  box-shadow: var(--shadow-xs);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   transition: all var(--transition-normal);
   display: flex;
   flex-direction: column;
 }
 
 .worker-card-premium:hover {
-  border-color: #bfdbfe;
-  box-shadow: var(--shadow-hover);
+  border-color: var(--palette-sage);
+  box-shadow: 0 8px 24px -4px rgba(186, 255, 245, 0.2);
   transform: translateY(-2px);
 }
 
@@ -43,14 +84,15 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--brand-gradient);
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--palette-slate), var(--palette-darkest));
+  border: 2px solid var(--palette-sage);
+  color: var(--palette-sage);
   font-weight: 800;
   font-size: 1.35rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   flex-shrink: 0;
 }
 
@@ -73,8 +115,9 @@
   gap: 0.25rem;
   font-size: 0.72rem;
   font-weight: 700;
-  background: var(--emerald-50);
-  color: var(--emerald-700);
+  background: rgba(186, 255, 245, 0.15);
+  color: var(--palette-sage);
+  border: 1px solid rgba(186, 255, 245, 0.3);
   padding: 0.15rem 0.45rem;
   border-radius: 6px;
 }
@@ -97,7 +140,7 @@
 .starting-rate-pill {
   font-size: 1.15rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: var(--palette-sage);
 }
 
 .starting-rate-pill small {
@@ -124,7 +167,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid var(--bg-subtle);
+  border-top: 1px solid var(--border-color);
   padding-top: 0.85rem;
   margin-top: auto;
 }
@@ -153,18 +196,18 @@
 }
 
 .avail-status-dot.avail-now {
-  background: var(--emerald-50);
-  color: var(--emerald-700);
+  background: rgba(186, 255, 245, 0.15);
+  color: var(--palette-sage);
 }
 
 .avail-status-dot.avail-today {
-  background: var(--primary-50);
-  color: var(--primary-700);
+  background: rgba(73, 101, 128, 0.35);
+  color: var(--palette-matcha);
 }
 
 .avail-status-dot.avail-week {
-  background: var(--amber-50);
-  color: var(--amber-700);
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
 }
 
 .pulse-circle {

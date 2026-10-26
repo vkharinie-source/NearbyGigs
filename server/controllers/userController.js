@@ -98,6 +98,65 @@ const updateUserProfile = async (req, res) => {
           : user.skills;
       }
 
+      if (req.body.userType !== undefined) user.userType = req.body.userType;
+      if (req.body.purpose !== undefined) user.purpose = req.body.purpose;
+      if (req.body.onboardingCompleted !== undefined) user.onboardingCompleted = Boolean(req.body.onboardingCompleted);
+      if (req.body.country !== undefined) user.country = String(req.body.country).trim();
+
+      // School Student Safeguard Fields
+      if (req.body.school) {
+        user.school = {
+          name: req.body.school.name || user.school?.name || '',
+          grade: req.body.school.grade || user.school?.grade || '',
+          daytimeAvailability: req.body.school.daytimeAvailability || user.school?.daytimeAvailability || 'After School (3 PM - 7 PM)',
+          generalServiceArea: req.body.school.generalServiceArea || user.school?.generalServiceArea || '',
+          parentConsentVerified: req.body.school.parentConsentVerified !== undefined ? Boolean(req.body.school.parentConsentVerified) : user.school?.parentConsentVerified || false,
+        };
+      }
+
+      // College Student Fields
+      if (req.body.college) {
+        user.college = {
+          name: req.body.college.name || user.college?.name || '',
+          course: req.body.college.course || user.college?.course || '',
+          year: Number(req.body.college.year) || user.college?.year || 1,
+          rollNumber: req.body.college.rollNumber || user.college?.rollNumber || '',
+          studentIdDocUrl: req.body.college.studentIdDocUrl || user.college?.studentIdDocUrl || '',
+        };
+      }
+
+      // Guardian & Safety Fields
+      if (req.body.guardian) {
+        user.guardian = {
+          name: req.body.guardian.name || user.guardian?.name || '',
+          phone: req.body.guardian.phone || user.guardian?.phone || '',
+          relationship: req.body.guardian.relationship || user.guardian?.relationship || 'Parent',
+          isVerified: req.body.guardian.isVerified !== undefined ? Boolean(req.body.guardian.isVerified) : user.guardian?.isVerified || false,
+        };
+      }
+      if (req.body.emergencyContacts && Array.isArray(req.body.emergencyContacts)) {
+        user.emergencyContacts = req.body.emergencyContacts;
+      }
+      if (req.body.maskedAadhaar) user.maskedAadhaar = req.body.maskedAadhaar;
+      if (req.body.kycStatus) user.kycStatus = req.body.kycStatus;
+      if (req.body.studentVerificationStatus) user.studentVerificationStatus = req.body.studentVerificationStatus;
+      if (req.body.isStudent !== undefined) user.isStudent = Boolean(req.body.isStudent);
+
+      // Professional Worker Fields
+      if (req.body.certifications !== undefined) {
+        user.certifications = Array.isArray(req.body.certifications) ? req.body.certifications : [];
+      }
+      if (req.body.portfolioLinks !== undefined) {
+        user.portfolioLinks = Array.isArray(req.body.portfolioLinks) ? req.body.portfolioLinks : [];
+      }
+      if (req.body.expectedRate !== undefined) user.expectedRate = Number(req.body.expectedRate) || 0;
+      if (req.body.rateType !== undefined) user.rateType = req.body.rateType;
+      if (req.body.workArea !== undefined) user.workArea = String(req.body.workArea).trim();
+
+      // Employer / Shop Fields
+      if (req.body.businessCategory !== undefined) user.businessCategory = String(req.body.businessCategory).trim();
+      if (req.body.businessLocation !== undefined) user.businessLocation = String(req.body.businessLocation).trim();
+
       const updatedUser = await user.save();
       const token = req.headers.authorization ? req.headers.authorization.split(' ')[1] : '';
 
@@ -114,6 +173,9 @@ const updateUserProfile = async (req, res) => {
         email: updatedUser.email,
         phone: updatedUser.phone || '',
         role: updatedUser.role,
+        purpose: updatedUser.purpose,
+        userType: updatedUser.userType,
+        onboardingCompleted: updatedUser.onboardingCompleted,
         bio: updatedUser.bio || '',
         skills: updatedUser.skills || [],
         experience: updatedUser.experience ?? 0,
@@ -124,9 +186,23 @@ const updateUserProfile = async (req, res) => {
         rating: updatedUser.rating || 5.0,
         isStudent: updatedUser.isStudent,
         age: updatedUser.age,
+        school: updatedUser.school,
+        college: updatedUser.college,
+        guardian: updatedUser.guardian,
+        certifications: updatedUser.certifications,
+        portfolioLinks: updatedUser.portfolioLinks,
+        expectedRate: updatedUser.expectedRate,
+        rateType: updatedUser.rateType,
+        workArea: updatedUser.workArea,
+        companyName: updatedUser.companyName,
+        companyRegistration: updatedUser.companyRegistration,
+        businessCategory: updatedUser.businessCategory,
+        businessLocation: updatedUser.businessLocation,
         kycStatus: updatedUser.kycStatus,
         maskedAadhaar: updatedUser.maskedAadhaar,
         employerStatus: updatedUser.employerStatus,
+        studentVerificationStatus: updatedUser.studentVerificationStatus,
+        savedGigs: updatedUser.savedGigs || [],
         token,
       });
     } else {

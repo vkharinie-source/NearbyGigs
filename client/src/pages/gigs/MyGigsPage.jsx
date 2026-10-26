@@ -15,13 +15,16 @@ import {
   FileText,
   AlertCircle,
   ChevronRight,
+  ShieldAlert,
 } from 'lucide-react';
+import RaiseComplaintModal from '../../components/complaint/RaiseComplaintModal';
 import './Gigs.css';
 
 const MyGigsPage = () => {
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('ALL');
+  const [complaintGig, setComplaintGig] = useState(null);
 
   const fetchMyGigs = async () => {
     try {
@@ -130,12 +133,29 @@ const MyGigsPage = () => {
 
                     <div className="my-gig-actions-foot">
                       <Link
-                        to="/applications/received"
+                        to={`/applications/received?gigId=${gig._id}`}
                         className="btn-outline btn-sm-custom"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
                         <Users size={14} />
-                        <span>View Proposals</span>
+                        <span>View Proposals ({gig.applicantsCount || 0})</span>
                       </Link>
+
+                      <button
+                        onClick={() => setComplaintGig(gig)}
+                        className="btn-outline btn-sm-custom"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          color: '#dc2626',
+                          borderColor: '#fca5a5',
+                        }}
+                        title="Raise Complaint or Report Issue"
+                      >
+                        <ShieldAlert size={14} />
+                        <span>Report Issue</span>
+                      </button>
 
                       <button
                         onClick={() => handleDelete(gig._id)}
@@ -163,6 +183,14 @@ const MyGigsPage = () => {
           </div>
         </main>
       </div>
+      <RaiseComplaintModal
+        isOpen={!!complaintGig}
+        onClose={() => setComplaintGig(null)}
+        relatedGig={complaintGig}
+        onSuccess={() => {
+          setComplaintGig(null);
+        }}
+      />
     </div>
   );
 };

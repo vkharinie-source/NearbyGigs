@@ -307,7 +307,11 @@ const FindWorkersPage = () => {
                         <div className="worker-action-buttons">
                           <button
                             className="btn-outline btn-sm-custom"
-                            onClick={() => navigate('/messages')}
+                            onClick={() => {
+                              const targetId = w.worker?._id || w._id;
+                              const targetName = w.worker?.name || w.title;
+                              navigate(`/messages?userId=${targetId}&name=${encodeURIComponent(targetName)}`);
+                            }}
                             title="Message Worker"
                           >
                             <MessageSquare size={14} />

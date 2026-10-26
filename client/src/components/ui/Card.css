@@ -1,8 +1,8 @@
 .ui-card {
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--bg-muted);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
@@ -10,7 +10,7 @@
 
 .ui-card-elevated {
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
   transition: all var(--transition-bounce);
 }
 
@@ -19,12 +19,12 @@
 }
 
 .ui-card-interactive:hover {
-  border-color: #cbd5e1;
-  box-shadow: var(--shadow-md);
+  border-color: var(--palette-sage);
+  box-shadow: 0 8px 24px -4px rgba(186, 255, 245, 0.2);
 }
 
 .ui-card-elevated.ui-card-interactive:hover {
-  border-color: var(--primary-200);
-  box-shadow: var(--shadow-hover);
+  border-color: var(--palette-sage);
+  box-shadow: 0 12px 28px -4px rgba(186, 255, 245, 0.25);
   transform: translateY(-2px);
 }

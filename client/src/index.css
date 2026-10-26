@@ -5,58 +5,74 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
 
 :root {
-  /* Brand Palette */
-  --primary-50: #eff6ff;
-  --primary-100: #dbeafe;
-  --primary-200: #bfdbfe;
-  --primary-300: #93c5fd;
-  --primary-400: #60a5fa;
-  --primary-500: #3b82f6;
-  --primary-600: #2563eb;
-  --primary-700: #1d4ed8;
-  --primary-800: #1e40af;
-  --primary-900: #1e3a8a;
+  /* =====================================================================
+     NEARBYGIG THEME: CLEAN LIGHT THEME (SLATE & CYAN MINT)
+     ===================================================================== */
+  --palette-darkest: #0F172A;
+  --palette-slate: #496580;
+  --palette-sage: #0F766E;
+  --palette-mint: #0F766E;
+  --palette-matcha: #E6FFFA;
+
+  /* Primary Palette */
+  --primary-50: #F0FDFA;
+  --primary-100: #CCFBF1;
+  --primary-200: #99F6E4;
+  --primary-300: #5EEAD4;
+  --primary-400: #2DD4BF;
+  --primary-500: #14B8A6;
+  --primary-600: #0F766E;         /* Primary brand action color */
+  --primary-700: #0F766E;
+  --primary-800: #115E59;
+  --primary-900: #496580;
 
   /* Accent & Gradients */
-  --accent-purple: #7c3aed;
-  --accent-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-  --brand-gradient: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
-  --dark-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  --accent-purple: #0F766E;
+  --accent-gradient: linear-gradient(135deg, #0F766E 0%, #496580 100%);
+  --brand-gradient: linear-gradient(135deg, #496580 0%, #0F172A 100%);
+  --brand-gradient-glow: linear-gradient(135deg, #0F766E 0%, #115E59 100%);
+  --dark-gradient: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);
+  --sage-gradient: linear-gradient(135deg, #0F766E 0%, #14B8A6 100%);
 
-  /* Neutrals & Surfaces */
-  --bg-ground: #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-subtle: #f1f5f9;
-  --bg-muted: #e2e8f0;
+  /* Neutrals & Surfaces (Clean Light Theme) */
+  --bg-ground: #F4F7F9;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-subtle: #F8FAFC;
+  --bg-muted: #F1F5F9;
+  --border-color: #E2E8F0;
+  --border-subtle: #E2E8F0;
+  --border-focus: #0F766E;
 
   /* Text Colors */
-  --text-primary: #0f172a;
+  --text-primary: #0F172A;
   --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
+  --text-muted: #64748B;
+  --text-light: #94A3B8;
+  --text-inverse: #FFFFFF;
 
   /* Semantic Status Colors */
-  --emerald-50: #ecfdf5;
-  --emerald-500: #10b981;
+  --emerald-50: #ECFDF5;
+  --emerald-500: #10B981;
   --emerald-600: #059669;
   --emerald-700: #047857;
 
-  --amber-50: #fffbeb;
-  --amber-500: #f59e0b;
-  --amber-600: #d97706;
-  --amber-700: #b45309;
+  --amber-50: #FFFBEB;
+  --amber-500: #F59E0B;
+  --amber-600: #D97706;
+  --amber-700: #B45309;
 
-  --rose-50: #fff1f2;
-  --rose-500: #f43f5e;
-  --rose-600: #e11d48;
+  --rose-50: #FFF1F2;
+  --rose-500: #F43F5E;
+  --rose-600: #E11D48;
 
-  /* Elevation & Shadows */
-  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.08);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  --shadow-hover: 0 12px 24px -4px rgba(37, 99, 235, 0.12), 0 6px 12px -2px rgba(15, 23, 42, 0.04);
+  /* Elevation & Shadows (Refined Light Mode Shadows) */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 30px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 10px 20px -3px rgba(15, 118, 110, 0.15), 0 0 0 1px #0F766E;
 
   /* Border Radii */
   --radius-sm: 8px;
@@ -106,12 +122,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #CBD5E1;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #0F766E;
 }
 
 /* Base Headings & Links */
@@ -178,5 +194,61 @@ input, textarea, select {
 
 .leaflet-popup-tip {
   background: #ffffff !important;
+}
+
+/* ==========================================================================
+   GLOBAL MODAL DIALOGS & OVERLAYS - HIGH Z-INDEX & FIXED CENTERING
+   ========================================================================== */
+.profile-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(15, 23, 42, 0.72) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.5rem !important;
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
+}
+
+.profile-modal-card {
+  background: #ffffff !important;
+  border-radius: 20px !important;
+  width: 100% !important;
+  max-width: 620px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.45) !important;
+  border: 1px solid #e2e8f0 !important;
+  position: relative !important;
+  margin: auto !important;
+  box-sizing: border-box !important;
+  z-index: 100000 !important;
+}
+
+.animate-fade-in {
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-up {
+  animation: modalScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleUp {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 

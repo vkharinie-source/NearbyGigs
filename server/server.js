@@ -25,12 +25,15 @@ const safetyRoutes = require('./routes/safetyRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const earningRoutes = require('./routes/earningRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const complaintRoutes = require('./routes/complaintRoutes');
+const { startComplaintScheduler } = require('./services/complaintScheduler');
 
 const { seedInitialDataIfEmpty } = require('./seed');
 
 connectDB()
   .then(() => {
     seedInitialDataIfEmpty();
+    startComplaintScheduler();
   })
   .catch((err) => console.warn('DB Connect notice:', err.message));
 
@@ -76,6 +79,7 @@ app.use('/api/safety', safetyRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/earnings', earningRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/complaints', complaintRoutes);
 
 app.get('/', (req, res) => {
   res.json({

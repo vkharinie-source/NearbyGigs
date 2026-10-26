@@ -32,7 +32,7 @@
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: var(--radius-md);
-  border: 1.5px solid var(--bg-muted);
+  border: 1.5px solid var(--border-color);
   font-size: 0.95rem;
   color: var(--text-primary);
   background: var(--bg-surface);
@@ -51,13 +51,14 @@
 
 .ui-input:focus {
   outline: none;
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: var(--palette-sage);
+  background: rgba(186, 255, 245, 0.05);
+  box-shadow: 0 0 0 3px rgba(186, 255, 245, 0.2);
 }
 
 .ui-input:focus + .ui-input-icon,
 .ui-input-wrapper:focus-within .ui-input-icon {
-  color: var(--primary-600);
+  color: var(--palette-sage);
 }
 
 .ui-input-error {

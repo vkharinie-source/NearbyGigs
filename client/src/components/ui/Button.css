@@ -23,15 +23,16 @@
 
 /* Variants */
 .btn-primary {
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.4);
+  background: linear-gradient(135deg, var(--palette-sage) 0%, #76e8d8 100%);
+  color: var(--palette-darkest);
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(186, 255, 245, 0.4);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+  background: linear-gradient(135deg, #c4e4a3 0%, var(--palette-sage) 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px -4px rgba(79, 70, 229, 0.5);
+  box-shadow: 0 8px 20px rgba(186, 255, 245, 0.55);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -39,26 +40,28 @@
 }
 
 .btn-secondary {
-  background: rgba(99, 102, 241, 0.1);
-  color: #4f46e5;
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: rgba(73, 101, 128, 0.5);
+  color: var(--palette-matcha);
+  border: 1px solid var(--palette-slate);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(186, 255, 245, 0.15);
+  border-color: var(--palette-sage);
+  color: var(--palette-sage);
   transform: translateY(-1px);
 }
 
 .btn-outline {
   background: transparent;
   color: var(--text-primary);
-  border: 1px solid var(--bg-muted);
+  border: 1px solid var(--border-color);
 }
 
 .btn-outline:hover:not(:disabled) {
-  border-color: #cbd5e1;
-  background: var(--bg-subtle);
+  border-color: var(--palette-sage);
+  color: var(--palette-sage);
+  background: rgba(186, 255, 245, 0.08);
   transform: translateY(-1px);
 }
 
@@ -68,13 +71,14 @@
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--bg-subtle);
+  background: rgba(73, 101, 128, 0.4);
   color: var(--text-primary);
 }
 
 .btn-danger {
-  background: rgba(225, 29, 72, 0.1);
-  color: #e11d48;
+  background: rgba(225, 29, 72, 0.15);
+  border: 1px solid rgba(225, 29, 72, 0.3);
+  color: #fda4af;
 }
 
 .btn-danger:hover:not(:disabled) {

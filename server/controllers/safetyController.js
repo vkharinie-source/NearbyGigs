@@ -38,8 +38,11 @@ const submitStudentVerification = async (req, res) => {
       rollNumber: rollNumber || user.college?.rollNumber || '',
       studentIdDocUrl: studentIdDocUrl || user.college?.studentIdDocUrl || '',
     };
-    user.studentVerificationStatus = 'verified';
-    user.studentVerifiedAt = new Date();
+    const isAutoApprove = Boolean(req.body.autoApprove);
+    user.studentVerificationStatus = isAutoApprove ? 'verified' : 'pending';
+    if (isAutoApprove) {
+      user.studentVerifiedAt = new Date();
+    }
 
     await user.save();
 
@@ -218,11 +221,14 @@ const submitKycVerification = async (req, res) => {
     const hash = hashAadhaar(aadhaarNumber);
     const refId = generateKycReference();
 
+    const isAutoApprove = Boolean(req.body.autoApprove);
     user.maskedAadhaar = masked;
     user.aadhaarHash = hash;
-    user.kycStatus = 'verified';
+    user.kycStatus = isAutoApprove ? 'verified' : 'pending';
     user.kycReferenceId = refId;
-    user.kycVerifiedAt = new Date();
+    if (isAutoApprove) {
+      user.kycVerifiedAt = new Date();
+    }
 
     await user.save();
 
@@ -497,6 +503,163 @@ const getMySafetyStatus = async (req, res) => {
   }
 };
 
+// @desc    Upload & submit category document for verification (Sets status to Pending / Under Review)
+// @route   POST /api/safety/documents
+// @access  Private
+const submitCategoryDocuments = async (req, res) => {
+  try {
+    const { docType, fileName, fileSize, fileUrl, categoryDetails } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const docEntry = {
+      docType: docType || `${user.userType}_document`,
+      fileName: fileName || `${user.userType}_proof.pdf`,
+      fileSize: fileSize || '350 KB',
+      fileUrl: fileUrl || '',
+      status: 'pending',
+      submittedAt: new Date(),
+    };
+
+    if (!user.documents) user.documents = [];
+    user.documents.push(docEntry);
+
+    // Update category-specific pending status
+    if (user.userType === 'college_student') {
+      user.studentVerificationStatus = 'pending';
+      if (categoryDetails?.collegeName) {
+        user.college = user.college || {};
+        user.college.name = categoryDetails.collegeName;
+        user.college.course = categoryDetails.course || user.college.course;
+        user.college.rollNumber = categoryDetails.rollNumber || user.college.rollNumber;
+      }
+    } else if (user.userType === 'teacher') {
+      if (!user.teacher) user.teacher = {};
+      user.teacher.verificationStatus = 'pending';
+      if (categoryDetails?.subjects) user.teacher.subjects = categoryDetails.subjects;
+      if (categoryDetails?.qualifications) user.teacher.qualifications = categoryDetails.qualifications;
+    } else if (user.userType === 'graduate') {
+      if (!user.graduate) user.graduate = {};
+      user.graduate.verificationStatus = 'pending';
+      if (categoryDetails?.degree) user.graduate.degree = categoryDetails.degree;
+      if (categoryDetails?.university) user.graduate.university = categoryDetails.university;
+    } else if (user.userType === 'professional') {
+      user.professionalVerificationStatus = 'pending';
+      user.kycStatus = 'pending';
+    } else if (user.userType === 'school_student') {
+      if (!user.school) user.school = {};
+      user.school.parentConsentVerified = false;
+    }
+
+    await user.save();
+
+    await Notification.create({
+      recipient: user._id,
+      type: 'system',
+      title: '📄 Documents Submitted for Review',
+      message: `Your ${docEntry.fileName} has been received and is currently Under Review by the verification team. Once approved, you will be eligible to apply for jobs.`,
+      link: '/profile',
+    });
+
+    res.json({
+      success: true,
+      message: 'Documents submitted successfully. Status is now Pending / Under Review.',
+      document: docEntry,
+      user,
+    });
+  } catch (error) {
+    console.error('Submit documents error:', error);
+    res.status(500).json({ success: false, message: 'Server error submitting verification documents.' });
+  }
+};
+
+// @desc    Approve / Update User Category Verification (Admin or authorized review)
+// @route   POST /api/safety/approve-verification
+// @access  Private
+const approveVerification = async (req, res) => {
+  try {
+    const targetUserId = req.body.userId || req.user._id;
+    const user = await User.findById(targetUserId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const { status = 'verified', category, reason } = req.body;
+
+    if (category === 'college_student' || user.userType === 'college_student') {
+      user.studentVerificationStatus = status;
+      if (status === 'verified') user.studentVerifiedAt = new Date();
+    }
+    if (category === 'teacher' || user.userType === 'teacher') {
+      if (!user.teacher) user.teacher = {};
+      user.teacher.verificationStatus = status;
+      if (status === 'verified') user.teacher.verifiedAt = new Date();
+    }
+    if (category === 'graduate' || user.userType === 'graduate') {
+      if (!user.graduate) user.graduate = {};
+      user.graduate.verificationStatus = status;
+      if (status === 'verified') user.graduate.verifiedAt = new Date();
+    }
+    if (category === 'professional' || user.userType === 'professional') {
+      user.professionalVerificationStatus = status;
+      if (status === 'verified') user.professionalVerifiedAt = new Date();
+    }
+    if (category === 'school_student' || user.userType === 'school_student') {
+      if (!user.school) user.school = {};
+      user.school.parentConsentVerified = status === 'verified';
+      if (status === 'verified') user.school.parentConsentApprovedAt = new Date();
+    }
+    if (category === 'employer' || user.userType === 'employer' || user.role === 'employer') {
+      user.employerStatus = status === 'verified' ? 'VERIFIED' : status.toUpperCase();
+      if (status === 'verified') user.employerVerifiedAt = new Date();
+    }
+
+    // Update KYC status
+    if (status === 'verified') {
+      user.kycStatus = 'verified';
+      user.kycVerifiedAt = new Date();
+      if (!user.maskedAadhaar) {
+        user.maskedAadhaar = 'XXXX-XXXX-9012';
+      }
+    } else {
+      user.kycStatus = status;
+    }
+
+    // Update documents array
+    if (user.documents && user.documents.length > 0) {
+      user.documents.forEach((d) => {
+        d.status = status;
+        if (status === 'verified') d.verifiedAt = new Date();
+        if (reason) d.rejectionReason = reason;
+      });
+    }
+
+    await user.save();
+
+    await Notification.create({
+      recipient: user._id,
+      type: 'system',
+      title: status === 'verified' ? '🎉 Documents Verified & Approved!' : `Verification Update: ${status}`,
+      message:
+        status === 'verified'
+          ? 'Your uploaded documents have been reviewed and approved! You are now eligible to apply for jobs matching your category.'
+          : `Your document verification status is: ${status}. ${reason || ''}`,
+      link: '/profile',
+    });
+
+    res.json({
+      success: true,
+      message: `Verification status updated to ${status}. Worker is now ${status === 'verified' ? 'approved and eligible to apply.' : 'blocked from applying until verified.'}`,
+      user,
+    });
+  } catch (error) {
+    console.error('Approve verification error:', error);
+    res.status(500).json({ success: false, message: 'Server error approving verification.' });
+  }
+};
+
 module.exports = {
   submitStudentVerification,
   requestGuardianOtp,
@@ -506,4 +669,6 @@ module.exports = {
   endWorkSession,
   triggerEmergencySOS,
   getMySafetyStatus,
+  submitCategoryDocuments,
+  approveVerification,
 };

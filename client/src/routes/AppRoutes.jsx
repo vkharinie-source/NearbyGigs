@@ -1,12 +1,15 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthContext } from '../context/AuthContext';
 
 // Pages
 import LandingPage from '../pages/landing/LandingPage';
 import Onboarding from '../pages/onboarding/Onboarding';
+import ChoosePurposePage from '../pages/onboarding/ChoosePurposePage';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
-import DashboardPage from '../pages/dashboard/DashboardPage';
+import WorkerDashboardPage from '../pages/dashboard/WorkerDashboardPage';
+import EmployerDashboardPage from '../pages/dashboard/EmployerDashboardPage';
 import FindGigsPage from '../pages/gigs/FindGigsPage';
 import CreateGigPage from '../pages/gigs/CreateGigPage';
 import MyGigsPage from '../pages/gigs/MyGigsPage';
@@ -20,9 +23,19 @@ import NotificationsPage from '../pages/notifications/NotificationsPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import SettingsPage from '../pages/settings/SettingsPage';
 import SafetyCenterPage from '../pages/safety/SafetyCenterPage';
+import MyComplaintsPage from '../pages/complaints/MyComplaintsPage';
+import ManagerComplaintsPage from '../pages/complaints/ManagerComplaintsPage';
+import AdminDisputesPage from '../pages/admin/AdminDisputesPage';
 
 // Protected Route Guard
 import ProtectedRoute from './ProtectedRoute';
+
+const DashboardDispatcher = () => {
+  const { user } = useAuthContext();
+  const isEmployer =
+    user?.role === 'employer' || user?.role === 'customer' || user?.purpose === 'post_jobs';
+  return <Navigate to={isEmployer ? '/employer/dashboard' : '/worker/dashboard'} replace />;
+};
 
 const AppRoutes = () => {
   return (
@@ -38,20 +51,60 @@ const AppRoutes = () => {
       <Route path="/workers" element={<FindWorkersPage />} />
       <Route path="/workers/:id" element={<FindWorkersPage />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route
+        path="/choose-purpose"
+        element={
+          <ProtectedRoute>
+            <ChoosePurposePage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Protected Dashboard Pages */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <DashboardDispatcher />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/employer/dashboard"
+        element={
+          <ProtectedRoute allowedRole="employer">
+            <EmployerDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/employer"
+        element={
+          <ProtectedRoute allowedRole="employer">
+            <EmployerDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/worker/dashboard"
+        element={
+          <ProtectedRoute allowedRole="worker">
+            <WorkerDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/worker"
+        element={
+          <ProtectedRoute allowedRole="worker">
+            <WorkerDashboardPage />
           </ProtectedRoute>
         }
       />
       <Route
         path="/create-gig"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRole="employer">
             <CreateGigPage />
           </ProtectedRoute>
         }
@@ -59,7 +112,7 @@ const AppRoutes = () => {
       <Route
         path="/my-gigs"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRole="employer">
             <MyGigsPage />
           </ProtectedRoute>
         }
@@ -83,7 +136,7 @@ const AppRoutes = () => {
       <Route
         path="/my-applications"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRole="worker">
             <MyApplicationsPage />
           </ProtectedRoute>
         }
@@ -91,7 +144,7 @@ const AppRoutes = () => {
       <Route
         path="/applications/received"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRole="employer">
             <ReceivedApplicationsPage />
           </ProtectedRoute>
         }
@@ -149,6 +202,46 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <SafetyCenterPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-complaints"
+        element={
+          <ProtectedRoute>
+            <MyComplaintsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/complaints"
+        element={
+          <ProtectedRoute>
+            <ManagerComplaintsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/complaints"
+        element={
+          <ProtectedRoute>
+            <ManagerComplaintsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/disputes"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminDisputesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dispute-resolution"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminDisputesPage />
           </ProtectedRoute>
         }
       />

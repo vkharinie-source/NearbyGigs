@@ -34,8 +34,18 @@ import {
   Lock,
   Sparkles,
   ArrowRight,
+  Bookmark,
+  BookmarkCheck,
+  Building2,
+  Layers,
+  GraduationCap,
+  Info,
+  HelpCircle,
+  ExternalLink,
+  UserCheck,
 } from 'lucide-react';
 import './Gigs.css';
+import SafeApplicationModal from '../../components/application/SafeApplicationModal';
 
 const FindGigsPage = () => {
   const navigate = useNavigate();
@@ -46,21 +56,37 @@ const FindGigsPage = () => {
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [radius, setRadius] = useState(Number(searchParams.get('radius')) || 25);
+
+  // Filter States
+  const [radius, setRadius] = useState(Number(searchParams.get('radius')) || 50);
   const [category, setCategory] = useState(searchParams.get('category') || 'All');
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState('distance');
+  const [workTypeFilter, setWorkTypeFilter] = useState('All'); // All | On-site | Remote | Hybrid
+  const [studentOnly, setStudentOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [minPay, setMinPay] = useState('');
+  const [maxPay, setMaxPay] = useState('');
+  const [experienceLevel, setExperienceLevel] = useState('');
+
   const [toastMessage, setToastMessage] = useState(null);
   const [locatingGps, setLocatingGps] = useState(false);
-
-  // Safety Gate Modal State
-  const [showGateModal, setShowGateModal] = useState(false);
+  const [savedGigsSet, setSavedGigsSet] = useState(new Set());
 
   // Apply Modal State
   const [selectedGig, setSelectedGig] = useState(null);
   const [proposal, setProposal] = useState('');
   const [proposedRate, setProposedRate] = useState('');
+  const [portfolioLink, setPortfolioLink] = useState('');
+  const [certificateName, setCertificateName] = useState('');
+  const [availabilityConfirmed, setAvailabilityConfirmed] = useState(true);
   const [submittingApply, setSubmittingApply] = useState(false);
+
+  // Eligibility Explanation Modal State
+  const [activeEligibilityInfo, setActiveEligibilityInfo] = useState(null);
+
+  // Auth Prompt Modal State (when non-registered user clicks Apply Now)
+  const [authPromptGig, setAuthPromptGig] = useState(null);
 
   // Report Modal State
   const [reportingGig, setReportingGig] = useState(null);
@@ -68,31 +94,59 @@ const FindGigsPage = () => {
   const [reportDetails, setReportDetails] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
 
-  const categoriesList = ['All', 'Electrical', 'Plumbing', 'Painting', 'Carpentry', 'Cleaning', 'Technology', 'Appliance'];
+  const categoriesList = [
+    'All',
+    'Electrical',
+    'Plumbing',
+    'Painting',
+    'Carpentry',
+    'Cleaning',
+    'Technology',
+    'Tutoring',
+    'Appliance',
+    'Campus',
+  ];
 
   const fetchGigs = async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await gigService.getNearbyGigs({
+
+      const queryParams = {
         lat: location.lat,
         lng: location.lng,
         radius,
         category: category !== 'All' ? category : '',
         search,
-      });
+        studentOnly: studentOnly ? 'true' : 'false',
+        verifiedOnly: verifiedOnly ? 'true' : 'false',
+      };
+
+      if (workTypeFilter !== 'All') queryParams.jobType = workTypeFilter;
+      if (minPay) queryParams.minBudget = minPay;
+      if (maxPay) queryParams.maxBudget = maxPay;
+      if (experienceLevel) queryParams.experienceLevel = experienceLevel;
+
+      const data = await gigService.getNearbyGigs(queryParams);
 
       let results = data.gigs || [];
       if (sortBy === 'budget') {
-        results.sort((a, b) => b.budgetMax - a.budgetMax);
+        results.sort((a, b) => (b.budgetMax || 0) - (a.budgetMax || 0));
       } else if (sortBy === 'newest') {
         results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       }
 
       setGigs(results);
+
+      // Track saved gigs
+      const savedIds = new Set();
+      results.forEach((g) => {
+        if (g.isSaved) savedIds.add(g._id);
+      });
+      setSavedGigsSet(savedIds);
     } catch (err) {
       console.error('Error fetching nearby gigs:', err);
-      setError('Unable to load gigs. Please check your connection.');
+      setError('Unable to load active jobs. Please check connection.');
     } finally {
       setLoading(false);
     }
@@ -100,11 +154,25 @@ const FindGigsPage = () => {
 
   useEffect(() => {
     fetchGigs();
-  }, [location.lat, location.lng, radius, category, sortBy]);
+  }, [
+    location.lat,
+    location.lng,
+    radius,
+    category,
+    sortBy,
+    workTypeFilter,
+    studentOnly,
+    verifiedOnly,
+  ]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     fetchGigs();
+  };
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleLiveGpsClick = async () => {
@@ -120,48 +188,122 @@ const FindGigsPage = () => {
     }
   };
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
+  // Save / Bookmark Gig
+  const handleToggleSaveGig = async (gigId, e) => {
+    e?.stopPropagation();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    const isCurrentlySaved = savedGigsSet.has(gigId);
+    try {
+      if (isCurrentlySaved) {
+        await gigService.unsaveGig(gigId);
+        setSavedGigsSet((prev) => {
+          const next = new Set(prev);
+          next.delete(gigId);
+          return next;
+        });
+        showToast('Job removed from saved bookmarks.');
+      } else {
+        await gigService.saveGig(gigId);
+        setSavedGigsSet((prev) => new Set(prev).add(gigId));
+        showToast('Job saved to your bookmarks!');
+      }
+    } catch (err) {
+      showToast('Could not update saved status.');
+    }
   };
 
-  const isWorkerUnverified = user && (user.role === 'worker' || user.role === 'student_worker') && user.kycStatus !== 'VERIFIED';
-
+  // Open Apply Modal
   const handleOpenApplyModal = (gig) => {
     if (!user) {
-      navigate('/login?tab=login&from=find-gigs');
+      try {
+        sessionStorage.setItem('pendingApplyGigId', gig._id);
+        sessionStorage.setItem('pendingApplyGigTitle', gig.title);
+      } catch (e) {}
+      setAuthPromptGig(gig);
       return;
     }
-    if (user.role === 'customer') {
-      alert('Employer accounts cannot apply for gigs. Please post a gig or switch to a worker account.');
+
+    if (user.role === 'customer' || user.purpose === 'post_jobs') {
+      alert('You are currently in Employer mode. Switch to Worker mode or create a worker profile to apply for jobs.');
       return;
     }
-    if (isWorkerUnverified) {
-      setSelectedGig(gig);
-      setShowGateModal(true);
+
+    if (!user.onboardingCompleted) {
+      showToast('Please select your applicant category and upload verification proof before applying.');
+      navigate(`/onboarding?purpose=find_work&applyGigId=${gig._id}`);
       return;
     }
+
+    // Check if not eligible or verification required (Strict Verification Gate)
+    if (gig.eligibility && !gig.eligibility.isEligible) {
+      setActiveEligibilityInfo({
+        gigTitle: gig.title,
+        eligibility: gig.eligibility,
+      });
+      return;
+    }
+
     setSelectedGig(gig);
     setProposedRate(gig.budgetMin || 500);
     setProposal('');
+    setPortfolioLink('');
+    setCertificateName('');
+    setAvailabilityConfirmed(true);
   };
 
-  const handleApplySubmit = async (e) => {
-    e.preventDefault();
+  // Automatically reopen apply modal if user returned from registering or logging in
+  useEffect(() => {
+    if (user && gigs.length > 0) {
+      const applyIdFromUrl = searchParams.get('applyGigId');
+      let applyIdFromSession = null;
+      try {
+        applyIdFromSession = sessionStorage.getItem('pendingApplyGigId');
+      } catch (e) {}
+      const targetGigId = applyIdFromUrl || applyIdFromSession;
+      if (targetGigId) {
+        const targetGig = gigs.find((g) => g._id === targetGigId);
+        if (targetGig) {
+          try {
+            sessionStorage.removeItem('pendingApplyGigId');
+            sessionStorage.removeItem('pendingApplyGigTitle');
+          } catch (e) {}
+          handleOpenApplyModal(targetGig);
+        }
+      }
+    }
+  }, [user, gigs, searchParams]);
+
+  // Submit Application with Suitability Proof & Verified Criteria
+  const handleSafeApplySubmit = async ({ proposedRate: rate, proposal: pitch, tier, criteriaAccepted }) => {
     if (!user) {
       alert('Please sign in to submit a proposal.');
       return;
     }
     setSubmittingApply(true);
     try {
+      const suitabilityProof = {
+        coverMessage: pitch,
+        tier,
+        criteriaAccepted,
+        availabilityConfirmed: true,
+        portfolioLinks: portfolioLink ? [{ title: 'Work Sample', url: portfolioLink }] : [],
+        certifications: certificateName ? [{ name: certificateName, issuer: 'Verified Holder' }] : [],
+      };
+
       await applicationService.applyForGig({
         gigId: selectedGig._id,
-        proposal,
-        proposedRate: Number(proposedRate),
+        proposal: pitch,
+        proposedRate: Number(rate),
         estimatedTime: selectedGig.duration || '2-3 Hours',
+        suitabilityProof,
       });
+
       setSelectedGig(null);
-      showToast('Proposal submitted successfully! Check Safety Center for status.');
+      showToast('🛡️ Verified Proposal Submitted! All safety & eligibility criteria accepted.');
       fetchGigs();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to submit proposal.');
@@ -170,6 +312,7 @@ const FindGigsPage = () => {
     }
   };
 
+  // Submit Report
   const handleReportSubmit = async (e) => {
     e.preventDefault();
     if (!reportingGig) return;
@@ -184,7 +327,7 @@ const FindGigsPage = () => {
       });
       setReportingGig(null);
       setReportDetails('');
-      showToast('Report submitted for admin review.');
+      showToast('Report submitted for safety investigation.');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to submit report.');
     } finally {
@@ -192,12 +335,50 @@ const FindGigsPage = () => {
     }
   };
 
+  // Helper for rendering Eligibility Badges
+  const renderEligibilityBadge = (eligibility) => {
+    if (!eligibility) return null;
+
+    let badgeClass = 'badge-eligible';
+    let icon = <CheckCircle2 size={13} color="#059669" />;
+    let text = eligibility.status;
+
+    if (eligibility.status === 'Requires Verification') {
+      badgeClass = 'badge-verification';
+      icon = <ShieldAlert size={13} color="#d97706" />;
+    } else if (eligibility.status === 'Additional Information Required') {
+      badgeClass = 'badge-info-needed';
+      icon = <Info size={13} color="#2563eb" />;
+    } else if (eligibility.status === 'Not Eligible for This Job') {
+      badgeClass = 'badge-ineligible';
+      icon = <X size={13} color="#dc2626" />;
+    }
+
+    return (
+      <button
+        type="button"
+        className={`eligibility-badge-btn ${badgeClass}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setActiveEligibilityInfo({
+            gigTitle: 'Eligibility Analysis',
+            eligibility,
+          });
+        }}
+        title="Click to view eligibility breakdown"
+      >
+        {icon}
+        <span>{text}</span>
+      </button>
+    );
+  };
+
   return (
     <div className="marketplace-page-layout">
       <Navbar />
 
       <main className="marketplace-main-container">
-        {/* TOAST ALERT */}
+        {/* Toast Alert */}
         {toastMessage && (
           <div className="profile-toast animate-slide-down">
             <CheckCircle2 size={18} color="#10b981" />
@@ -208,79 +389,66 @@ const FindGigsPage = () => {
           </div>
         )}
 
-        {/* SAFETY FIRST MARKETPLACE BANNER */}
+        {/* Top Community Safety Banner */}
         <div className="safety-first-banner animate-fade-in">
           <div className="safety-banner-icon">
-            <ShieldCheck size={22} color="#2563eb" />
+            <ShieldCheck size={24} color="#2563eb" />
           </div>
           <div className="safety-banner-text">
-            <h4>Safety-First Community Standard Active</h4>
+            <h4>Verified Gig Marketplace &amp; Smart Eligibility</h4>
             <p>
-              To keep our local gig ecosystem 100% trustworthy and secure, all workers must complete Identity &amp; Safety Verification before applying for gigs.
+              All listings are checked for lawful compliance, fair rates, and student safety curfews. Verified worker commitment and single-use arrival OTPs ensure safe task completion.
             </p>
           </div>
-          {(!user || user.kycStatus !== 'VERIFIED') && (
+          {(!user || user.kycStatus !== 'verified') && (
             <button
               className="btn-safety-verify-action"
               onClick={() => {
                 if (!user) navigate('/login?tab=register&role=worker');
-                else navigate('/onboarding?role=worker');
+                else navigate('/onboarding');
               }}
             >
               <Sparkles size={14} />
-              <span>Complete Safety Steps</span>
+              <span>Complete Verification</span>
               <ArrowRight size={14} />
             </button>
           )}
         </div>
 
-        {/* Toolbar Hero Filter Header */}
+        {/* Search & Location Toolbar */}
         <section className="marketplace-toolbar-card">
           <div className="toolbar-top-row">
             <div className="location-pill-wrap">
               <MapPin size={16} className="loc-pin-icon" />
               <div className="loc-info-text">
-                <span className="loc-label">CURRENT SEARCH LOCATION</span>
+                <span className="loc-label">SEARCH AREA</span>
+                <span className="loc-sep">•</span>
                 <span className="loc-val">{location.address || 'Bengaluru, Karnataka'}</span>
               </div>
-              <div style={{ marginLeft: '12px' }}>
-                <button
-                  type="button"
-                  onClick={handleLiveGpsClick}
-                  disabled={locatingGps}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    background: isLiveTracking ? '#ecfdf5' : '#eff6ff',
-                    border: `1px solid ${isLiveTracking ? '#6ee7b7' : '#bfdbfe'}`,
-                    color: isLiveTracking ? '#059669' : '#2563eb',
-                    borderRadius: '9999px',
-                    padding: '3px 10px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {locatingGps ? <Loader2 size={11} className="animate-spin" /> : <Crosshair size={11} />}
-                  <span>{locatingGps ? 'Syncing...' : isLiveTracking ? 'Live GPS Active' : 'Live Track GPS'}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleLiveGpsClick}
+                disabled={locatingGps}
+                className="live-gps-pill-btn"
+              >
+                {locatingGps ? <Loader2 size={11} className="animate-spin" /> : <Crosshair size={11} />}
+                <span>{locatingGps ? 'Locating...' : isLiveTracking ? 'Live GPS Active' : 'Live GPS'}</span>
+              </button>
             </div>
 
             <form onSubmit={handleSearchSubmit} className="toolbar-search-form">
               <Search size={18} className="search-icon" />
               <input
                 type="text"
-                placeholder="Search gigs by title or keywords..."
+                placeholder="Search jobs by title, skills (e.g. Electrical, Python, Tutoring)..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <button type="submit" className="btn-primary-sm">Search</button>
+              <button type="submit" className="btn-primary-sm" style={{ background: '#0F766E', color: '#FFFFFF', borderRadius: '8px', padding: '6px 14px', fontWeight: 700 }}>Search</button>
             </form>
           </div>
 
-          {/* Category Chips & Controls */}
+          {/* Category Chips Scroll */}
           <div className="toolbar-bottom-row">
             <div className="category-chips-scroll">
               {categoriesList.map((cat) => (
@@ -300,9 +468,9 @@ const FindGigsPage = () => {
                 <span>Radius: {radius} km</span>
                 <input
                   type="range"
-                  min="3"
-                  max="50"
-                  step="2"
+                  min="5"
+                  max="100"
+                  step="5"
                   value={radius}
                   onChange={(e) => setRadius(Number(e.target.value))}
                 />
@@ -313,20 +481,67 @@ const FindGigsPage = () => {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
               >
-                <option value="distance">Sort by: Closest First</option>
-                <option value="budget">Sort by: Budget (High-Low)</option>
-                <option value="newest">Sort by: Recently Posted</option>
+                <option value="distance">Sort: Closest Distance</option>
+                <option value="budget">Sort: Highest Pay</option>
+                <option value="newest">Sort: Recently Posted</option>
               </select>
             </div>
           </div>
+
+          {/* Advanced Filters Strip */}
+          <div className="toolbar-advanced-strip">
+            {/* Work Type Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: '#475569', fontWeight: 600 }}>
+              <span>Work Type:</span>
+              <select
+                className="sort-dropdown"
+                style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+                value={workTypeFilter}
+                onChange={(e) => setWorkTypeFilter(e.target.value)}
+              >
+                <option value="All">All Types</option>
+                <option value="On-site">On-site</option>
+                <option value="Remote">Remote</option>
+                <option value="Hybrid">Hybrid</option>
+              </select>
+            </div>
+
+            {/* Student-eligible checkbox */}
+            <label className="filter-pill-label">
+              <input
+                type="checkbox"
+                checked={studentOnly}
+                onChange={(e) => setStudentOnly(e.target.checked)}
+                style={{ accentColor: '#0F766E' }}
+              />
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <GraduationCap size={14} color="#0F766E" /> Student Eligible
+              </span>
+            </label>
+
+            {/* Verified Employers only */}
+            <label className="filter-pill-label">
+              <input
+                type="checkbox"
+                checked={verifiedOnly}
+                onChange={(e) => setVerifiedOnly(e.target.checked)}
+                style={{ accentColor: '#0F766E' }}
+              />
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <ShieldCheck size={14} color="#0F766E" /> Verified Employers Only
+              </span>
+            </label>
+          </div>
         </section>
 
-        {/* Two-Column Marketplace Content */}
+        {/* Two-Column Marketplace View */}
         <div className="marketplace-split-view">
-          {/* Left: Scrollable Gig Cards */}
+          {/* Left Column: Job Cards List */}
           <div className="marketplace-cards-column">
             <div className="results-count-bar">
-              <span>Showing <strong>{gigs.length}</strong> active gigs</span>
+              <span>
+                Found <strong style={{ color: '#0F172A' }}>{gigs.length}</strong> active jobs in your area
+              </span>
             </div>
 
             {loading ? (
@@ -341,101 +556,173 @@ const FindGigsPage = () => {
               </div>
             ) : gigs.length > 0 ? (
               <div className="gigs-grid-stack">
-                {gigs.map((gig) => (
-                  <div key={gig._id} className="gig-card-premium">
-                    <div className="gig-card-head">
-                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <span className="badge-category">{gig.category}</span>
-                        {gig.isVerifiedEmployer && (
-                          <span className="badge-category" style={{ background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }}>
-                            <ShieldCheck size={12} /> Verified Employer
+                {gigs.map((gig) => {
+                  const isSaved = savedGigsSet.has(gig._id);
+                  return (
+                    <div key={gig._id} className="gig-card-premium animate-fade-in">
+                      <div className="gig-card-head">
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span className="badge-category">{gig.category}</span>
+                          <span
+                            className="badge-category"
+                            style={{
+                              background: gig.jobType === 'Remote' ? '#F0FDFA' : '#F1F5F9',
+                              color: gig.jobType === 'Remote' ? '#0F766E' : '#334155',
+                              borderColor: gig.jobType === 'Remote' ? '#CCFBF1' : '#E2E8F0',
+                            }}
+                          >
+                            {gig.jobType || 'On-site'}
                           </span>
-                        )}
-                        {gig.isNightGig && (
-                          <span className="badge-category" style={{ background: '#fef3c7', color: '#d97706', borderColor: '#fde68a' }}>
-                            <Moon size={12} /> Night Work Alert
+
+                          {gig.isVerifiedEmployer && (
+                            <span
+                              className="badge-category"
+                              style={{ background: '#ECFDF5', color: '#047857', borderColor: '#A7F3D0' }}
+                            >
+                              <ShieldCheck size={12} /> Verified Employer
+                            </span>
+                          )}
+
+                          {gig.isNightGig && (
+                            <span
+                              className="badge-category"
+                              style={{ background: '#FFFBEB', color: '#B45309', borderColor: '#FDE68A' }}
+                            >
+                              <Moon size={12} /> Night Work
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="gig-price-range">
+                            ₹{gig.budgetMin} {gig.budgetMax !== gig.budgetMin ? `- ₹${gig.budgetMax}` : ''}
+                            <small style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginLeft: '3px' }}>
+                              /{gig.salaryType || 'Fixed'}
+                            </small>
                           </span>
+
+                          {/* Save Job Bookmark Button */}
+                          <button
+                            type="button"
+                            className="icon-btn-ghost"
+                            onClick={(e) => handleToggleSaveGig(gig._id, e)}
+                            title={isSaved ? 'Remove from saved' : 'Save job'}
+                            style={{ color: isSaved ? '#0F766E' : '#94A3B8' }}
+                          >
+                            {isSaved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <h3 className="gig-card-title">{gig.title}</h3>
+                      <p className="gig-card-description">{gig.description}</p>
+
+                      {/* Required Skills */}
+                      {gig.requiredSkills && gig.requiredSkills.length > 0 && (
+                        <div className="gig-skills-chips">
+                          {gig.requiredSkills.map((sk, idx) => (
+                            <span key={idx} className="skill-mini-tag">{sk}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Employer & Details Row */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          margin: '0.75rem 0',
+                          padding: '0.5rem 0',
+                          borderTop: '1px solid #F1F5F9',
+                          borderBottom: '1px solid #F1F5F9',
+                          fontSize: '0.82rem',
+                          color: '#64748B',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, color: '#0F172A' }}>
+                          <Building2 size={13} color="#0F766E" />
+                          {gig.postedBy?.companyName || gig.postedBy?.name || 'Local Employer'}
+                        </span>
+                        <span>•</span>
+                        <span>Schedule: <strong style={{ color: '#0F172A' }}>{gig.time || gig.duration || 'Flexible'}</strong></span>
+                        {gig.applicantsCount !== undefined && (
+                          <>
+                            <span>•</span>
+                            <span>{gig.applicantsCount} {gig.applicantsCount === 1 ? 'applicant' : 'applicants'}</span>
+                          </>
                         )}
                       </div>
-                      <span className="gig-price-range">
-                        ₹{gig.budgetMin} - ₹{gig.budgetMax}
-                      </span>
-                    </div>
 
-                    <h3 className="gig-card-title">{gig.title}</h3>
-                    <p className="gig-card-description">{gig.description}</p>
-
-                    {gig.requiredSkills && gig.requiredSkills.length > 0 && (
-                      <div className="gig-skills-chips">
-                        {gig.requiredSkills.map((sk, idx) => (
-                          <span key={idx} className="skill-mini-tag">{sk}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="gig-card-foot">
-                      <div className="foot-meta-group">
-                        <span className="meta-loc" title={gig.address}>
-                          <MapPin size={13} color="#2563eb" />
-                          {gig.distanceKm ? `${gig.distanceKm} km away • ` : ''}{gig.address || 'Bengaluru'}
-                        </span>
-                        <span className="meta-time">
-                          <Clock size={13} />
-                          {gig.time || gig.duration || 'Flexible'}
-                        </span>
+                      {/* Eligibility Status Badge */}
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        {renderEligibilityBadge(gig.eligibility)}
                       </div>
 
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          className="icon-btn-ghost"
-                          title="Report Gig"
-                          onClick={() => setReportingGig(gig)}
-                          style={{ color: '#94a3b8' }}
-                        >
-                          <Flag size={14} />
-                        </button>
-                        <button
-                          className="btn-primary-sm"
-                          onClick={() => handleOpenApplyModal(gig)}
-                        >
-                          Apply Proposal
-                        </button>
+                      {/* Card Footer Actions */}
+                      <div className="gig-card-foot">
+                        <div className="foot-meta-group">
+                          <span className="meta-loc" title={gig.address}>
+                            <MapPin size={13} color="#0F766E" />
+                            {gig.distanceKm ? `${gig.distanceKm} km away • ` : ''}{gig.address || 'Bengaluru'}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="icon-btn-ghost"
+                            title="Report Job"
+                            onClick={() => setReportingGig(gig)}
+                            style={{ color: '#94a3b8' }}
+                          >
+                            <Flag size={14} />
+                          </button>
+
+                          <button
+                            className="btn-primary-sm"
+                            onClick={() => handleOpenApplyModal(gig)}
+                          >
+                            Apply Now
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="empty-state-card">
                 <div className="empty-state-icon-box">
                   <Compass size={32} />
                 </div>
-                <h3>No gigs match your filters</h3>
-                <p>Try increasing your search radius or clearing your category filters to view more opportunities.</p>
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => {
-                      setCategory('All');
-                      setRadius(50);
-                      setSearch('');
-                      fetchGigs();
-                    }}
-                  >
-                    Reset Filters & Show All
-                  </button>
-                </div>
+                <h3>No jobs matching your criteria</h3>
+                <p>Try expanding your radius, clearing category filters, or searching for other skills.</p>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setCategory('All');
+                    setRadius(50);
+                    setSearch('');
+                    setWorkTypeFilter('All');
+                    setStudentOnly(false);
+                    setVerifiedOnly(false);
+                    fetchGigs();
+                  }}
+                >
+                  Reset All Filters
+                </button>
               </div>
             )}
           </div>
 
-          {/* Right: Sticky Interactive Map */}
+          {/* Right Column: Sticky Interactive Radar Map */}
           <div className="marketplace-map-column">
             <div className="sticky-map-wrapper">
               <div className="map-badge-header">
                 <MapPin size={15} color="#2563eb" />
-                <span>Interactive Discovery Map</span>
+                <span>Geofenced Radar Map</span>
               </div>
               <LocationMap
                 center={[location.lat, location.lng]}
@@ -447,103 +734,111 @@ const FindGigsPage = () => {
           </div>
         </div>
 
-        {/* Apply Modal with Night Work Safety Alert */}
-        {selectedGig && (
-          <div className="profile-modal-overlay animate-fade-in" onClick={() => setSelectedGig(null)}>
-            <div className="profile-modal-card animate-scale-up" onClick={(e) => e.stopPropagation()}>
+        {/* =========================================================================
+            SAFE & SECURE MULTI-TIER APPLICATION MODAL
+            ========================================================================= */}
+        <SafeApplicationModal
+          gig={selectedGig}
+          user={user}
+          isOpen={!!selectedGig}
+          onClose={() => setSelectedGig(null)}
+          onSubmit={handleSafeApplySubmit}
+          isSubmitting={submittingApply}
+        />
+
+        {/* =========================================================================
+            ELIGIBILITY EXPLANATION MODAL (Section 4)
+            ========================================================================= */}
+        {activeEligibilityInfo && (
+          <div className="profile-modal-overlay animate-fade-in" onClick={() => setActiveEligibilityInfo(null)}>
+            <div
+              className="profile-modal-card animate-scale-up"
+              style={{ maxWidth: '520px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="modal-header">
                 <div className="modal-header-title">
-                  <Briefcase size={20} color="#2563eb" />
-                  <h3>Submit Proposal: {selectedGig.title}</h3>
+                  <ShieldCheck size={20} color="#2563eb" />
+                  <h3>Smart Eligibility Breakdown</h3>
                 </div>
-                <button className="modal-close-btn" onClick={() => setSelectedGig(null)}>
+                <button className="modal-close-btn" onClick={() => setActiveEligibilityInfo(null)}>
                   <X size={18} />
                 </button>
               </div>
 
-              <form onSubmit={handleApplySubmit} className="modal-form-body">
-                {/* Night Work Safety Alert Banner */}
-                {selectedGig.isNightGig && (
-                  <div
-                    style={{
-                      background: '#fffbeb',
-                      border: '1px solid #fde68a',
-                      borderRadius: '10px',
-                      padding: '0.85rem',
-                      color: '#92400e',
-                      fontSize: '0.85rem',
-                      marginBottom: '1rem',
-                      display: 'flex',
-                      gap: '0.5rem',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <Moon size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <div>
-                      <strong>🌙 Night Work Safety Alert:</strong>
-                      <p style={{ margin: '0.2rem 0 0' }}>
-                        This gig is scheduled during evening/night hours ({selectedGig.time || 'Late Evening'}). For student safety, your emergency contact or verified parent/guardian will receive safety status notifications upon work session start.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="info-box-pill">
-                  Client Budget: ₹{selectedGig.budgetMin} - ₹{selectedGig.budgetMax} • Schedule: {selectedGig.date || 'Today'} ({selectedGig.time || 'Flexible'})
+              <div className="modal-form-body">
+                <div
+                  style={{
+                    background:
+                      activeEligibilityInfo.eligibility.status === 'Eligible to Apply'
+                        ? '#ecfdf5'
+                        : activeEligibilityInfo.eligibility.status === 'Not Eligible for This Job'
+                        ? '#fef2f2'
+                        : '#eff6ff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    marginBottom: '1.25rem',
+                  }}
+                >
+                  <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '0.4rem', color: '#0f172a' }}>
+                    Status: {activeEligibilityInfo.eligibility.status}
+                  </h4>
+                  <p style={{ fontSize: '0.88rem', color: '#334155', margin: 0, lineHeight: '1.5' }}>
+                    {activeEligibilityInfo.eligibility.summary}
+                  </p>
                 </div>
 
-                <div className="form-group-modern">
-                  <label>Your Proposed Rate (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="50"
-                    className="form-input-modern"
-                    value={proposedRate}
-                    onChange={(e) => setProposedRate(e.target.value)}
-                  />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                    Evaluation Factors:
+                  </h5>
+
+                  {activeEligibilityInfo.eligibility.reasons &&
+                    activeEligibilityInfo.eligibility.reasons.map((r, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '8px',
+                          fontSize: '0.85rem',
+                          color: '#1e293b',
+                          background: '#f8fafc',
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <CheckCircle2 size={16} color="#059669" style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <span>{r}</span>
+                      </div>
+                    ))}
                 </div>
 
-                <div className="form-group-modern">
-                  <label>Proposal Pitch / How you will complete it *</label>
-                  <textarea
-                    rows={3}
-                    required
-                    className="form-input-modern"
-                    placeholder="Describe your tools, background, and safety preparation..."
-                    value={proposal}
-                    onChange={(e) => setProposal(e.target.value)}
-                  />
-                </div>
-
-                <div className="modal-footer">
+                <div className="modal-footer" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                  {activeEligibilityInfo.eligibility.status === 'Requires Verification' && (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ background: '#0F766E', borderColor: '#0F766E', padding: '0.55rem 1.25rem', fontSize: '0.88rem' }}
+                      onClick={() => {
+                        setActiveEligibilityInfo(null);
+                        navigate('/onboarding');
+                      }}
+                    >
+                      Verify Documents Now <ArrowRight size={14} />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="btn-cancel"
-                    onClick={() => setSelectedGig(null)}
-                    disabled={submittingApply}
+                    className="btn-secondary"
+                    style={{ padding: '0.55rem 1.25rem', fontSize: '0.88rem' }}
+                    onClick={() => setActiveEligibilityInfo(null)}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-save-primary"
-                    disabled={submittingApply}
-                  >
-                    {submittingApply ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        <span>Sending Proposal...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send size={16} />
-                        <span>Submit Proposal</span>
-                      </>
-                    )}
+                    Close
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         )}
@@ -555,7 +850,7 @@ const FindGigsPage = () => {
               <div className="modal-header">
                 <div className="modal-header-title">
                   <Flag size={20} color="#dc2626" />
-                  <h3>Report Gig: {reportingGig.title}</h3>
+                  <h3>Report Job: {reportingGig.title}</h3>
                 </div>
                 <button className="modal-close-btn" onClick={() => setReportingGig(null)}>
                   <X size={18} />
@@ -573,7 +868,7 @@ const FindGigsPage = () => {
                     <option value="safety_concern">Safety Concern</option>
                     <option value="fraud_or_scam">Fraud / Scam Suspicion</option>
                     <option value="suspicious_employer">Suspicious Employer</option>
-                    <option value="underage_violation">Underage Hazard</option>
+                    <option value="underage_violation">Underage Hazard Violation</option>
                     <option value="other">Other Issue</option>
                   </select>
                 </div>
@@ -584,7 +879,7 @@ const FindGigsPage = () => {
                     rows={3}
                     required
                     className="form-input-modern"
-                    placeholder="Provide details about why this gig is suspicious or unsafe..."
+                    placeholder="Provide details about why this listing violates safety standards..."
                     value={reportDetails}
                     onChange={(e) => setReportDetails(e.target.value)}
                   />
@@ -603,68 +898,126 @@ const FindGigsPage = () => {
           </div>
         )}
 
-        {/* SAFETY VERIFICATION GATE MODAL */}
-        {showGateModal && (
-          <div className="profile-modal-overlay animate-fade-in" onClick={() => setShowGateModal(false)}>
-            <div className="profile-modal-card safety-gate-modal-card animate-scale-up" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <div className="modal-header-title">
-                  <ShieldAlert size={22} color="#2563eb" />
-                  <h3>Safety &amp; Identity Verification Required</h3>
-                </div>
-                <button className="modal-close-btn" onClick={() => setShowGateModal(false)}>
-                  <X size={18} />
-                </button>
+        {/* REGISTRATION REQUIRED MODAL */}
+        {authPromptGig && (
+          <div className="profile-modal-overlay animate-fade-in" onClick={() => setAuthPromptGig(null)}>
+            <div
+              className="profile-modal-card animate-scale-up"
+              style={{ maxWidth: '480px', textAlign: 'center', padding: '2rem' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  background: '#eff6ff',
+                  color: '#2563eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.25rem',
+                  boxShadow: '0 8px 20px -4px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                <UserCheck size={32} />
               </div>
 
-              <div className="modal-form-body">
-                <p className="safety-gate-intro">
-                  NearbyGigs enforces safety measures first. Before you can submit proposals or unlock contact details for <strong>{selectedGig?.title || 'this gig'}</strong>, please complete our quick safety verification.
-                </p>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#fef3c7',
+                  color: '#92400e',
+                  padding: '3px 10px',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  marginBottom: '0.75rem',
+                }}
+              >
+                ACCOUNT REQUIRED
+              </div>
 
-                <div className="safety-gate-features-grid">
-                  <div className="safety-gate-feature-item">
-                    <div className="safety-icon-circle"><ShieldCheck size={18} color="#10b981" /></div>
-                    <div>
-                      <strong>Masked Aadhaar KYC Privacy</strong>
-                      <p>Verify your identity safely without exposing raw government IDs.</p>
-                    </div>
-                  </div>
+              <h3 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.5rem' }}>
+                Register to Apply for this Job
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '1.5rem' }}>
+                You must register as a verified worker or student on NearbyGigs before submitting a job proposal.
+              </p>
 
-                  <div className="safety-gate-feature-item">
-                    <div className="safety-icon-circle"><Lock size={18} color="#2563eb" /></div>
-                    <div>
-                      <strong>Emergency SOS &amp; Work Session Safety</strong>
-                      <p>Real-time distress alert network and live guardian safety notifications.</p>
-                    </div>
-                  </div>
-
-                  <div className="safety-gate-feature-item">
-                    <div className="safety-icon-circle"><CheckCircle2 size={18} color="#8b5cf6" /></div>
-                    <div>
-                      <strong>Skill &amp; Background Certification</strong>
-                      <p>Show employers you are certified for the job with zero unverified spam.</p>
-                    </div>
-                  </div>
+              {/* Job snippet preview */}
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1.5px solid #e2e8f0',
+                  borderRadius: '14px',
+                  padding: '1rem',
+                  textAlign: 'left',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
+                  Target Job
                 </div>
-
-                <div className="modal-footer" style={{ marginTop: '1.5rem' }}>
-                  <button type="button" className="btn-cancel" onClick={() => setShowGateModal(false)}>
-                    Maybe Later
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-save-primary"
-                    onClick={() => {
-                      setShowGateModal(false);
-                      navigate('/onboarding?role=worker');
-                    }}
-                  >
-                    <ShieldCheck size={16} />
-                    <span>Complete Verification Now</span>
-                    <ArrowRight size={14} />
-                  </button>
+                <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.05rem', marginTop: '3px', marginBottom: '6px' }}>
+                  {authPromptGig.title}
                 </div>
+                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', color: '#475569', flexWrap: 'wrap' }}>
+                  <span>Rate: <strong style={{ color: '#059669' }}>₹{authPromptGig.budgetMin} - ₹{authPromptGig.budgetMax}</strong></span>
+                  <span>•</span>
+                  <span>Schedule: <strong>{authPromptGig.time || authPromptGig.duration || 'Flexible'}</strong></span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  className="btn-save-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '0.9rem', fontSize: '0.95rem' }}
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('pendingApplyGigId', authPromptGig._id);
+                      sessionStorage.setItem('pendingApplyGigTitle', authPromptGig.title);
+                    } catch (e) {}
+                    navigate(`/register?from=apply&gigId=${authPromptGig._id}&gigTitle=${encodeURIComponent(authPromptGig.title)}&role=worker`);
+                  }}
+                >
+                  <Sparkles size={16} />
+                  <span>Register Free Account &amp; Apply</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '0.85rem', fontSize: '0.92rem', background: '#ffffff', border: '1px solid #cbd5e1' }}
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('pendingApplyGigId', authPromptGig._id);
+                      sessionStorage.setItem('pendingApplyGigTitle', authPromptGig.title);
+                    } catch (e) {}
+                    navigate(`/login?tab=login&from=apply&gigId=${authPromptGig._id}&gigTitle=${encodeURIComponent(authPromptGig.title)}`);
+                  }}
+                >
+                  Already have an account? Sign In
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    padding: '0.5rem',
+                  }}
+                  onClick={() => setAuthPromptGig(null)}
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

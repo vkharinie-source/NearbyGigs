@@ -99,4 +99,28 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { protect, authorize };
+// Optional authentication middleware (attaches req.user if present, does not fail if unauthenticated)
+const optionalAuth = async (req, res, next) => {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      if (token) {
+        const secret = process.env.JWT_SECRET || 'nearbygigs_super_secret_jwt_key';
+        const decoded = jwt.verify(token, secret);
+        const user = await User.findById(decoded.id)
+          .select('-password -aadhaarHash -otpSecret -guardian.otp -passwordResetToken');
+        if (user) {
+          req.user = user;
+        }
+      }
+    } catch (err) {
+      // Ignore invalid/expired token for optional auth
+    }
+  }
+  next();
+};
+
+module.exports = { protect, authorize, optionalAuth };

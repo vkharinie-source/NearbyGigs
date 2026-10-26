@@ -21,6 +21,14 @@ export const safetyService = {
     const res = await API.post('/safety/kyc-verify', data);
     return res.data;
   },
+  submitDocuments: async (data) => {
+    const res = await API.post('/safety/documents', data);
+    return res.data;
+  },
+  approveVerification: async (data) => {
+    const res = await API.post('/safety/approve-verification', data);
+    return res.data;
+  },
   startWorkSession: async (data) => {
     const res = await API.post('/safety/work-session/start', data);
     return res.data;
